@@ -43,9 +43,10 @@ class _SkeletonBoxState extends State<SkeletonBox>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: -2,
+      end: 2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -67,11 +68,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value + 1, 0),
-              colors: const [
-                _kSurface,
-                _kSurfaceLight,
-                _kSurface,
-              ],
+              colors: const [_kSurface, _kSurfaceLight, _kSurface],
             ),
           ),
         );
@@ -96,10 +93,7 @@ class SkeletonVideoCardLarge extends StatelessWidget {
         // サムネイル（16:9）
         AspectRatio(
           aspectRatio: 16 / 9,
-          child: SkeletonBox(
-            width: double.infinity,
-            borderRadius: 0,
-          ),
+          child: SkeletonBox(width: double.infinity, borderRadius: 0),
         ),
         Padding(
           padding: const EdgeInsets.all(12),
@@ -107,21 +101,14 @@ class SkeletonVideoCardLarge extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // アバター
-              const SkeletonBox(
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-              ),
+              const SkeletonBox(width: 36, height: 36, borderRadius: 18),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // タイトル行1
-                    SkeletonBox(
-                      width: double.infinity,
-                      height: 14,
-                    ),
+                    SkeletonBox(width: double.infinity, height: 14),
                     const SizedBox(height: 6),
                     // タイトル行2
                     SkeletonBox(
@@ -164,11 +151,7 @@ class SkeletonVideoCardSmall extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // サムネイル
-          const SkeletonBox(
-            width: 160,
-            height: 90,
-            borderRadius: 8,
-          ),
+          const SkeletonBox(width: 160, height: 90, borderRadius: 8),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -274,7 +257,7 @@ class SkeletonListView extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         shrinkWrap: true,
         itemCount: itemCount,
-        itemBuilder: (_, __) => itemBuilder(),
+        itemBuilder: (_, _) => itemBuilder(),
       ),
     );
   }
@@ -299,7 +282,7 @@ class SkeletonSliverList extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
-        (_, __) => itemBuilder(),
+        (_, _) => itemBuilder(),
         childCount: itemCount,
       ),
     );
@@ -322,10 +305,7 @@ class SkeletonPlaylistCard extends StatelessWidget {
         // サムネイル（16:9）
         AspectRatio(
           aspectRatio: 16 / 9,
-          child: SkeletonBox(
-            width: double.infinity,
-            borderRadius: 8,
-          ),
+          child: SkeletonBox(width: double.infinity, borderRadius: 8),
         ),
         const SizedBox(height: 8),
         // プレイリスト名
@@ -350,7 +330,7 @@ class SkeletonPlaylistSliverGrid extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       sliver: SliverGrid(
         delegate: SliverChildBuilderDelegate(
-          (_, __) => const SkeletonPlaylistCard(),
+          (_, _) => const SkeletonPlaylistCard(),
           childCount: itemCount,
         ),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

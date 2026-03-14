@@ -54,13 +54,11 @@ class PlaylistService {
       // 最新動画のURLからサムネイルを生成
       String? thumbnailUrl;
       if (rows.isNotEmpty) {
-        final latestVideoUrl =
-            rows.first['videos']?['url'] as String?;
+        final latestVideoUrl = rows.first['videos']?['url'] as String?;
         if (latestVideoUrl != null) {
           final videoId = _extractVideoId(latestVideoUrl);
           if (videoId != null) {
-            thumbnailUrl =
-                'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+            thumbnailUrl = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
           }
         }
       }
@@ -104,7 +102,7 @@ class PlaylistService {
         .select()
         .single();
 
-    return Playlist.fromJson(response as Map<String, dynamic>);
+    return Playlist.fromJson(response);
   }
 
   /// 指定動画が属するプレイリストのID一覧を取得（編集時の初期値用）
@@ -123,16 +121,16 @@ class PlaylistService {
         .eq('video_id', videoId)
         .inFilter('playlist_id', myPlaylistIds);
 
-    return (response as List)
-        .map((r) => r['playlist_id'] as String)
-        .toList();
+    return (response as List).map((r) => r['playlist_id'] as String).toList();
   }
 
   /// 動画のプレイリスト関連付けを一括更新する
   ///
   /// 既存の関連（自分のプレイリスト分）を全削除して再挿入します。
   Future<void> setVideoPlaylists(
-      String videoId, List<String> playlistIds) async {
+    String videoId,
+    List<String> playlistIds,
+  ) async {
     final currentUser = SupabaseService.instance.currentUser;
     if (currentUser == null) return;
 

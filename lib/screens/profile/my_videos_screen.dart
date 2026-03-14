@@ -42,8 +42,7 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
 
     // ── キャッシュ読み込み（初回表示のみ）──
     if (!isRefresh) {
-      final cached =
-          CacheService.instance.get<List<Video>>(CacheKeys.myVideos);
+      final cached = CacheService.instance.get<List<Video>>(CacheKeys.myVideos);
       if (cached != null) {
         if (mounted) {
           setState(() {
@@ -169,10 +168,7 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _ytSurface,
-        title: Text(
-          '動画を削除',
-          style: TextStyle(color: _textWhite),
-        ),
+        title: Text('動画を削除', style: TextStyle(color: _textWhite)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,16 +202,10 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
 
     try {
       // video_tags を先に削除
-      await _supabase
-          .from('video_tags')
-          .delete()
-          .eq('video_id', video.id);
+      await _supabase.from('video_tags').delete().eq('video_id', video.id);
 
       // 動画を削除
-      await _supabase
-          .from('videos')
-          .delete()
-          .eq('id', video.id);
+      await _supabase.from('videos').delete().eq('id', video.id);
 
       // キャッシュを無効化
       CacheService.instance.invalidate(CacheKeys.myVideos);
@@ -277,7 +267,8 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: video.thumbnailUrl != null &&
+                      child:
+                          video.thumbnailUrl != null &&
                               video.thumbnailUrl!.isNotEmpty
                           ? Image.network(
                               video.thumbnailUrl!,
@@ -286,34 +277,40 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                               fit: BoxFit.cover,
                               loadingBuilder:
                                   (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  width: 160,
-                                  height: 90,
-                                  color: _ytSurface,
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      color: _ytRed,
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                );
-                              },
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      width: 160,
+                                      height: 90,
+                                      color: _ytSurface,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: _ytRed,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    );
+                                  },
                               errorBuilder: (context, error, stackTrace) =>
                                   Container(
-                                width: 160,
-                                height: 90,
-                                color: _ytSurface,
-                                child: Icon(Icons.play_circle_outline,
-                                    color: _textGray, size: 36),
-                              ),
+                                    width: 160,
+                                    height: 90,
+                                    color: _ytSurface,
+                                    child: Icon(
+                                      Icons.play_circle_outline,
+                                      color: _textGray,
+                                      size: 36,
+                                    ),
+                                  ),
                             )
                           : Container(
                               width: 160,
                               height: 90,
                               color: _ytSurface,
-                              child: Icon(Icons.video_library_outlined,
-                                  color: _textGray, size: 36),
+                              child: Icon(
+                                Icons.video_library_outlined,
+                                color: _textGray,
+                                size: 36,
+                              ),
                             ),
                     ),
                     // 再生ボタン（中央）
@@ -324,8 +321,11 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                           color: Colors.black.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.play_arrow,
-                            color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ],
@@ -355,23 +355,23 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: _ytSurface,
                             borderRadius: BorderRadius.circular(3),
                           ),
                           child: Text(
                             video.mainCategory,
-                            style:
-                                TextStyle(color: _textGray, fontSize: 10),
+                            style: TextStyle(color: _textGray, fontSize: 10),
                           ),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             video.relativeTime,
-                            style:
-                                TextStyle(color: _textGray, fontSize: 11),
+                            style: TextStyle(color: _textGray, fontSize: 11),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -384,12 +384,15 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
                         spacing: 4,
                         children: video.tags
                             .take(3)
-                            .map((tag) => Text(
-                                  '#$tag',
-                                  style: TextStyle(
-                                      color: Colors.blue[300],
-                                      fontSize: 10),
-                                ))
+                            .map(
+                              (tag) => Text(
+                                '#$tag',
+                                style: TextStyle(
+                                  color: Colors.blue[300],
+                                  fontSize: 10,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                     ],
@@ -438,7 +441,6 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
     );
   }
 
-
   /// スケルトンビュー（初回ロード中に表示）
   Widget _buildSkeletonView() {
     return Container(
@@ -476,64 +478,64 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
       body: _isLoading
           ? _buildSkeletonView()
           : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, color: _ytRed, size: 48),
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(color: _textWhite),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadMyVideos,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _ytSurface,
-                          ),
-                          child: Text('再読み込み',
-                              style: TextStyle(color: _textWhite)),
-                        ),
-                      ],
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, color: _ytRed, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!,
+                      style: TextStyle(color: _textWhite),
+                      textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadMyVideos,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _ytSurface,
+                      ),
+                      child: Text('再読み込み', style: TextStyle(color: _textWhite)),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _videos.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.video_library_outlined,
+                    size: 80,
+                    color: _ytSurface,
                   ),
-                )
-              : _videos.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.video_library_outlined,
-                              size: 80, color: _ytSurface),
-                          const SizedBox(height: 16),
-                          Text(
-                            '投稿した動画はありません',
-                            style: TextStyle(
-                                color: _textGray, fontSize: 16),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '動画を投稿すると、ここに表示されます',
-                            style: TextStyle(
-                                color: _textGray, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _loadMyVideos,
-                      color: _ytRed,
-                      backgroundColor: _ytSurface,
-                      child: ListView.builder(
-                        itemCount: _videos.length,
-                        itemBuilder: (context, index) =>
-                            _buildVideoCard(_videos[index]),
-                      ),
-                    ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '投稿した動画はありません',
+                    style: TextStyle(color: _textGray, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '動画を投稿すると、ここに表示されます',
+                    style: TextStyle(color: _textGray, fontSize: 12),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadMyVideos,
+              color: _ytRed,
+              backgroundColor: _ytSurface,
+              child: ListView.builder(
+                itemCount: _videos.length,
+                itemBuilder: (context, index) =>
+                    _buildVideoCard(_videos[index]),
+              ),
+            ),
     );
   }
 }
@@ -596,8 +598,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
       if (mounted) {
         setState(() {
           _myPlaylists = results[0] as List<Playlist>;
-          _selectedPlaylistIds.addAll(
-              (results[1] as List<String>));
+          _selectedPlaylistIds.addAll((results[1] as List<String>));
           _isLoadingPlaylists = false;
         });
       }
@@ -613,8 +614,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF272727),
-        title: const Text('新しいプレイリスト',
-            style: TextStyle(color: Colors.white)),
+        title: const Text('新しいプレイリスト', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: nameController,
           autofocus: true,
@@ -632,8 +632,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('キャンセル',
-                style: TextStyle(color: Colors.white54)),
+            child: const Text('キャンセル', style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () {
@@ -649,8 +648,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
     if (result == null || !mounted) return;
 
     try {
-      final newPlaylist =
-          await PlaylistService.instance.createPlaylist(result);
+      final newPlaylist = await PlaylistService.instance.createPlaylist(result);
       if (mounted) {
         setState(() {
           _myPlaylists.insert(0, newPlaylist);
@@ -754,10 +752,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
       debugPrint('❌ Error updating video: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('更新に失敗しました: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('更新に失敗しました: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -778,9 +773,10 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
             const Text(
               'プレイリスト',
               style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600),
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -792,7 +788,9 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.blue[300]),
+                strokeWidth: 2,
+                color: Colors.blue[300],
+              ),
             ),
           )
         // プレイリストなし
@@ -830,8 +828,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                   width: 1,
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 onSelected: (value) {
                   setState(() {
                     if (value) {
@@ -850,18 +847,19 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
         // 新規作成ボタン
         OutlinedButton.icon(
           onPressed: _showCreatePlaylistDialog,
-          icon: const Icon(Icons.add_circle_outline,
-              size: 15, color: Color(0xFF64B5F6)),
+          icon: const Icon(
+            Icons.add_circle_outline,
+            size: 15,
+            color: Color(0xFF64B5F6),
+          ),
           label: const Text(
             '新しいプレイリスト',
-            style:
-                TextStyle(color: Color(0xFF64B5F6), fontSize: 12),
+            style: TextStyle(color: Color(0xFF64B5F6), fontSize: 12),
           ),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Color(0xFF1A3A5C)),
             backgroundColor: const Color(0xFF0D1A26),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
@@ -873,7 +871,7 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
   @override
   Widget build(BuildContext context) {
     // フォームフィールド共通デコレーション
-    InputDecoration _fieldDeco({
+    InputDecoration fieldDeco({
       required String label,
       required IconData icon,
       String? helper,
@@ -904,8 +902,10 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Colors.red),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
       );
     }
 
@@ -953,8 +953,11 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                           width: 120,
                           height: 68,
                           color: const Color(0xFF272727),
-                          child: const Icon(Icons.video_library,
-                              color: Colors.white38, size: 32),
+                          child: const Icon(
+                            Icons.video_library,
+                            color: Colors.white38,
+                            size: 32,
+                          ),
                         ),
                       ),
                     ),
@@ -1013,21 +1016,25 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                       // タイトル入力
                       TextFormField(
                         controller: _titleController,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        decoration: _fieldDeco(
-                          label: 'タイトル',
-                          icon: Icons.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
                         ),
+                        decoration: fieldDeco(label: 'タイトル', icon: Icons.title),
                         maxLength: 100,
-                        buildCounter: (context,
-                                {required currentLength,
-                                required isFocused,
-                                maxLength}) =>
-                            Text(
-                          '$currentLength / ${maxLength ?? 100}',
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 11),
-                        ),
+                        buildCounter:
+                            (
+                              context, {
+                              required currentLength,
+                              required isFocused,
+                              maxLength,
+                            }) => Text(
+                              '$currentLength / ${maxLength ?? 100}',
+                              style: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 11,
+                              ),
+                            ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'タイトルを入力してください';
@@ -1042,21 +1049,26 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
 
                       // カテゴリ選択
                       DropdownButtonFormField<String>(
-                        value: _selectedCategory,
+                        initialValue: _selectedCategory,
                         dropdownColor: const Color(0xFF272727),
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 14),
-                        decoration: _fieldDeco(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                        decoration: fieldDeco(
                           label: 'カテゴリ',
                           icon: Icons.category_outlined,
                         ),
                         items: _categories
-                            .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text(c,
-                                      style: const TextStyle(
-                                          color: Colors.white)),
-                                ))
+                            .map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(
+                                  c,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            )
                             .toList(),
                         onChanged: (value) {
                           if (value != null) {
@@ -1070,16 +1082,16 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                       TextFormField(
                         controller: _tagInputController,
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 14),
-                        decoration: _fieldDeco(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                        decoration: fieldDeco(
                           label: 'タグを追加',
                           icon: Icons.tag,
                           helper: 'Enterまたは＋で追加',
                           suffix: IconButton(
-                            icon: const Icon(Icons.add,
-                                color: Colors.white54),
-                            onPressed: () =>
-                                _addTag(_tagInputController.text),
+                            icon: const Icon(Icons.add, color: Colors.white54),
+                            onPressed: () => _addTag(_tagInputController.text),
                           ),
                         ),
                         textInputAction: TextInputAction.done,
@@ -1093,22 +1105,28 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                           spacing: 8,
                           runSpacing: 6,
                           children: _tags
-                              .map((tag) => Chip(
-                                    label: Text(tag,
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12)),
-                                    backgroundColor:
-                                        const Color(0xFF2A2A2A),
-                                    deleteIconColor: Colors.white54,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    onDeleted: () => _removeTag(tag),
-                                    side: const BorderSide(
-                                        color: Color(0xFF444444)),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 4),
-                                  ))
+                              .map(
+                                (tag) => Chip(
+                                  label: Text(
+                                    tag,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  backgroundColor: const Color(0xFF2A2A2A),
+                                  deleteIconColor: Colors.white54,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  onDeleted: () => _removeTag(tag),
+                                  side: const BorderSide(
+                                    color: Color(0xFF444444),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                ),
+                              )
                               .toList(),
                         ),
                       ],
@@ -1145,8 +1163,9 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                               : const Text(
                                   '保存する',
                                   style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                         ),
                       ),
@@ -1180,4 +1199,3 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
     );
   }
 }
-

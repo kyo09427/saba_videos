@@ -26,7 +26,7 @@ class _PostVideoScreenState extends State<PostVideoScreen> {
   // カテゴリとタグの状態
   String _selectedCategory = '雑談';
   final List<String> _categories = ['雑談', 'ゲーム', '音楽', 'ネタ', 'その他'];
-  List<String> _tags = [];
+  final List<String> _tags = [];
 
   // プレイリスト関連の状態
   List<Playlist> _myPlaylists = [];
@@ -485,7 +485,7 @@ class _PostVideoScreenState extends State<PostVideoScreen> {
 
               // メインカテゴリ選択
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'メインカテゴリ',
                   border: OutlineInputBorder(),

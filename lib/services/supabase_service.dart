@@ -3,7 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase接続を管理するサービスクラス
-/// 
+///
 /// このクラスはシングルトンパターンを使用して、
 /// アプリ全体で単一のSupabaseクライアントインスタンスを共有します。
 class SupabaseService {
@@ -30,10 +30,10 @@ class SupabaseService {
   }
 
   /// Supabaseの初期化
-  /// 
+  ///
   /// アプリ起動時に一度だけ呼び出す必要があります。
   /// .envファイルから環境変数を読み込み、Supabaseクライアントを初期化します。
-  /// 
+  ///
   /// Throws:
   ///   - [Exception] 環境変数が設定されていない場合
   ///   - [Exception] Supabaseの初期化に失敗した場合
@@ -107,11 +107,11 @@ class SupabaseService {
   }
 
   /// 共有パスワードを検証
-  /// 
+  ///
   /// [password] 検証するパスワード
-  /// 
+  ///
   /// Returns: パスワードが一致する場合true、それ以外false
-  /// 
+  ///
   /// Throws:
   ///   - [StateError] 共有パスワードが初期化されていない場合
   bool validateSharedPassword(String password) {
@@ -130,28 +130,28 @@ class SupabaseService {
   }
 
   /// 現在のユーザーを取得
-  /// 
+  ///
   /// Returns: ログイン中のユーザー、未ログインの場合null
   User? get currentUser => client.auth.currentUser;
 
   /// 現在のセッションを取得
-  /// 
+  ///
   /// Returns: 有効なセッション、存在しない場合null
   Session? get currentSession => client.auth.currentSession;
 
   /// 認証状態の変更を監視するストリーム
-  /// 
+  ///
   /// このストリームを使用して、ログイン/ログアウトなどの
   /// 認証状態の変化をリアルタイムで監視できます。
   Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
 
   /// メールアドレスとパスワードで新規登録
-  /// 
+  ///
   /// [email] 登録するメールアドレス
   /// [password] パスワード（6文字以上推奨）
-  /// 
+  ///
   /// Returns: 認証レスポンス（ユーザー情報を含む）
-  /// 
+  ///
   /// Throws:
   ///   - [AuthException] メールアドレスが既に使用されている場合
   ///   - [AuthException] パスワードが弱い場合
@@ -184,7 +184,9 @@ class SupabaseService {
         debugPrint('✅ Sign up successful for: $trimmedEmail');
         if (response.user != null) {
           debugPrint('   User ID: ${response.user!.id}');
-          debugPrint('   Email confirmed: ${response.user!.emailConfirmedAt != null}');
+          debugPrint(
+            '   Email confirmed: ${response.user!.emailConfirmedAt != null}',
+          );
         }
       }
 
@@ -206,12 +208,12 @@ class SupabaseService {
   }
 
   /// メールアドレスとパスワードでログイン
-  /// 
+  ///
   /// [email] メールアドレス
   /// [password] パスワード
-  /// 
+  ///
   /// Returns: 認証レスポンス（セッション情報を含む）
-  /// 
+  ///
   /// Throws:
   ///   - [AuthException] 認証情報が正しくない場合
   ///   - [AuthException] メールが確認されていない場合
@@ -267,7 +269,7 @@ class SupabaseService {
   }
 
   /// ユーザーのプロフィールが存在することを確認し、存在しない場合は作成
-  /// 
+  ///
   /// [user] ログイン中のユーザー
   Future<void> _ensureProfileExists(User user) async {
     try {
@@ -303,7 +305,7 @@ class SupabaseService {
 
       // 既に存在する場合は、UUIDの一部を追加してユニークにする
       if (existingUsername != null) {
-        defaultUsername = '$defaultUsername\_${user.id.substring(0, 8)}';
+        defaultUsername = '${defaultUsername}_${user.id.substring(0, 8)}';
       }
 
       // プロフィールを作成
@@ -326,10 +328,10 @@ class SupabaseService {
   }
 
   /// ログアウト
-  /// 
+  ///
   /// 現在のセッションを終了し、ローカルに保存されている
   /// 認証情報をクリアします。
-  /// 
+  ///
   /// Throws:
   ///   - [Exception] ログアウトに失敗した場合
   Future<void> signOut() async {
@@ -352,9 +354,9 @@ class SupabaseService {
   }
 
   /// パスワードリセットメールを送信
-  /// 
+  ///
   /// [email] パスワードをリセットするメールアドレス
-  /// 
+  ///
   /// Throws:
   ///   - [AuthException] メールアドレスが存在しない場合
   ///   - [Exception] ネットワークエラーなどの場合
@@ -388,7 +390,7 @@ class SupabaseService {
   }
 
   /// 認証状態を確認
-  /// 
+  ///
   /// Returns: ログイン中で有効なセッションがある場合true
   bool get isAuthenticated {
     final user = currentUser;
@@ -397,7 +399,7 @@ class SupabaseService {
   }
 
   /// Supabaseサービスをリセット（テスト用）
-  /// 
+  ///
   /// 警告: 本番環境では使用しないでください
   @visibleForTesting
   static void reset() {
@@ -411,9 +413,9 @@ class SupabaseService {
   // ============================================
 
   /// チャンネルを登録
-  /// 
+  ///
   /// [channelId] 登録するチャンネル（ユーザー）のID
-  /// 
+  ///
   /// Throws:
   ///   - [Exception] 自分自身を登録しようとした場合
   ///   - [Exception] 既に登録済みの場合
@@ -450,9 +452,9 @@ class SupabaseService {
   }
 
   /// チャンネル登録を解除
-  /// 
+  ///
   /// [channelId] 登録解除するチャンネル（ユーザー）のID
-  /// 
+  ///
   /// Throws:
   ///   - [Exception] 登録解除に失敗した場合
   Future<void> unsubscribeFromChannel(String channelId) async {
@@ -484,9 +486,9 @@ class SupabaseService {
   }
 
   /// チャンネルを登録しているかチェック
-  /// 
+  ///
   /// [channelId] チェックするチャンネル（ユーザー）のID
-  /// 
+  ///
   /// Returns: 登録している場合true、それ以外false
   Future<bool> isSubscribed(String channelId) async {
     try {
@@ -512,9 +514,9 @@ class SupabaseService {
   }
 
   /// チャンネルの登録者数を取得
-  /// 
+  ///
   /// [channelId] チャンネル（ユーザー）のID
-  /// 
+  ///
   /// Returns: 登録者数
   Future<int> getSubscriberCount(String channelId) async {
     try {
@@ -533,7 +535,7 @@ class SupabaseService {
   }
 
   /// 登録しているチャンネルのIDリストを取得
-  /// 
+  ///
   /// Returns: 登録チャンネルのIDリスト
   Future<List<String>> getSubscribedChannelIds() async {
     try {
@@ -557,9 +559,9 @@ class SupabaseService {
   }
 
   /// チャンネルの動画数を取得
-  /// 
+  ///
   /// [channelId] チャンネル（ユーザー）のID
-  /// 
+  ///
   /// Returns: 動画数
   Future<int> getChannelVideoCount(String channelId) async {
     try {

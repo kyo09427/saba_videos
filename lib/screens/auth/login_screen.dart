@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/supabase_service.dart';
+import '../../services/discord_auth_service.dart';
 import '../home/home_screen.dart';
 import 'register_screen.dart';
 
@@ -16,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isDiscordLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
 
@@ -76,8 +78,42 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleDiscordLogin() async {
+    setState(() {
+      _isDiscordLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await DiscordAuthService.instance.signInWithDiscord();
+    } catch (e) {
+      String errorMessage = 'Discordログインに失敗しました';
+      
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('設定されていません')) {
+        errorMessage = 'Discord認証が設定されていません。\n管理者に問い合わせてください。';
+      } else if (errorString.contains('network')) {
+        errorMessage = 'ネットワークエラーが発生しました。\n接続を確認してください。';
+      }
+      
+      if (mounted) {
+        setState(() {
+          _errorMessage = errorMessage;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDiscordLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bool isAnyLoading = _isLoading || _isDiscordLoading;
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -123,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autocorrect: false,
-                  enabled: !_isLoading,
+                  enabled: !isAnyLoading,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'メールアドレスを入力してください';
@@ -158,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
-                  enabled: !_isLoading,
+                  enabled: !isAnyLoading,
                   onFieldSubmitted: (_) => _handleLogin(),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -199,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // ログインボタン
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
+                  onPressed: isAnyLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: Colors.blue,
@@ -220,11 +256,58 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(fontSize: 16),
                         ),
                 ),
+                const SizedBox(height: 24),
+
+                // セパレーター「または」
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey[400])),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'または',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey[400])),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Discordでログインボタン
+                ElevatedButton.icon(
+                  onPressed: isAnyLoading ? null : _handleDiscordLogin,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF5865F2), // Discord brand color
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[300],
+                  ),
+                  icon: _isDiscordLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.discord, size: 24),
+                  label: _isDiscordLoading
+                      ? const Text('')
+                      : const Text(
+                          'Discordでログイン',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                ),
                 const SizedBox(height: 16),
 
                 // 新規登録へのリンク
                 TextButton(
-                  onPressed: _isLoading
+                  onPressed: isAnyLoading
                       ? null
                       : () {
                           Navigator.of(context).push(

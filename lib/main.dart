@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/supabase_service.dart';
+import 'services/discord_auth_service.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 
@@ -13,6 +15,8 @@ void main() async {
   // Supabaseの初期化
   try {
     await SupabaseService.initialize();
+    // Discord認証サービスの初期化
+    DiscordAuthService.initialize();
   } catch (e) {
     // 初期化エラーをログ出力
     debugPrint('Supabase initialization error: $e');
@@ -82,7 +86,9 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   bool _isInitialized = false;
+  bool _isVerifyingGuild = false;
   String? _errorMessage;
+  String? _guildErrorMessage;
 
   @override
   void initState() {
@@ -102,6 +108,44 @@ class _AuthWrapperState extends State<AuthWrapper> {
         _errorMessage = 'アプリの初期化に失敗しました。\n設定を確認してください。';
         _isInitialized = true;
       });
+    }
+  }
+
+  /// Discordログイン後のサーバーメンバーシップ検証
+  Future<void> _verifyDiscordMembership(session) async {
+    // Discord OAuthでのログインかどうかを確認
+    final provider = session.user?.appMetadata['provider'];
+    if (provider != 'discord') {
+      return; // Discord以外のログインはスキップ
+    }
+
+    // プロバイダートークンがない場合はスキップ（既存セッションの復帰時）
+    if (session.providerToken == null) {
+      return;
+    }
+
+    setState(() {
+      _isVerifyingGuild = true;
+      _guildErrorMessage = null;
+    });
+
+    try {
+      final success = await DiscordAuthService.instance.handleDiscordCallback(session);
+      if (!success) {
+        setState(() {
+          _guildErrorMessage = '指定のDiscordサーバーに参加していないため、\nログインできません。';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _guildErrorMessage = 'Discordサーバーの確認に失敗しました。\n再度お試しください。';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isVerifyingGuild = false;
+        });
+      }
     }
   }
 
@@ -159,6 +203,58 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
+    // サーバーメンバーシップ検証中
+    if (_isVerifyingGuild) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Discordサーバーを確認中...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // サーバーメンバーシップエラー
+    if (_guildErrorMessage != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.block,
+                  size: 64,
+                  color: Colors.orange,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _guildErrorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _guildErrorMessage = null;
+                    });
+                  },
+                  child: const Text('ログイン画面に戻る'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return StreamBuilder(
       stream: SupabaseService.instance.authStateChanges,
       builder: (context, snapshot) {
@@ -208,6 +304,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final session = snapshot.hasData ? snapshot.data!.session : null;
 
         if (session != null) {
+          // Discord OAuthでの新規ログイン時にサーバーメンバーシップを検証
+          final authEvent = snapshot.data!.event;
+          if (authEvent == AuthChangeEvent.signedIn &&
+              session.user.appMetadata['provider'] == 'discord' &&
+              session.providerToken != null) {
+            // 非同期でギルドメンバーシップを検証
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _verifyDiscordMembership(session);
+            });
+          }
+
           // ログイン済み → ホーム画面
           return const HomeScreen();
         } else {
