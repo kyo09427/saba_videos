@@ -14,6 +14,7 @@
 - 🎯 **シンプルな操作**: タップでYouTubeアプリを起動
 - ⚡ **リアルタイム更新**: 誰かが投稿したらすぐに反映
 - ⚡ **高速表示**: TTLキャッシュでホーム・マイページ・チャンネルなどの再表示を高速化
+- 📋 **プレイリスト機能**: 動画をプレイリストにまとめて整理。投稿・編集時に選択でき、チャンネルページからまとめて視聴可能
 - 🎨 **YouTubeライクなUI**: 使い慣れたインターフェース
 
 ## 技術スタック
@@ -205,7 +206,9 @@ lib/
 │   ├── home/
 │   │   └── home_screen.dart               # ホーム画面（カテゴリフィルター・検索バー付き動画一覧）
 │   ├── channel/
-│   │   └── channel_screen.dart            # チャンネルページ（登録ボタン・動画一覧）
+│   │   └── channel_screen.dart            # チャンネルページ（タブ切り替え：動画/プレイリスト）
+│   ├── playlist/
+│   │   └── playlist_detail_screen.dart    # プレイリスト詳細（動画一覧）
 │   ├── subscriptions/
 │   │   └── subscriptions_screen.dart      # 登録チャンネル一覧・動画フィード
 │   ├── timeline/
@@ -214,10 +217,11 @@ lib/
 │   │   └── post_video_screen.dart         # 投稿画面（URL入力・プレビュー）
 │   └── profile/
 │       ├── my_page_screen.dart            # マイページ画面（キャッシュ・プルリフレッシュ対応）
+│       ├── my_videos_screen.dart          # 投稿動画管理・編集（プレイリスト選択対応）
 │       └── edit_profile_screen.dart       # プロフィール編集画面
 └── widgets/                                # 再利用可能なウィジェット
     ├── video_card.dart                    # 動画カード（汎用）
-    ├── skeleton_widgets.dart              # スケルトンローディングウィジェット
+    ├── skeleton_widgets.dart              # スケルトンローディングウィジェット（プレイリストカード対応）
     └── app_bottom_navigation_bar.dart     # ボトムナビゲーション
 ```
 
@@ -250,6 +254,18 @@ lib/
 |---------|------|
 | tags | タグマスタ（name: タグ名） |
 | video_tags | 動画とタグの多対多リレーション（video_id, tag_id） |
+
+### playlists テーブル / playlist_videos テーブル
+
+| カラム名 | 型 | 説明 |
+|---------|---|------|
+| id | UUID | 主キー |
+| name | TEXT | プレイリスト名 |
+| user_id | UUID | 作成者のユーザーID |
+| created_at | TIMESTAMPTZ | 作成日時 |
+
+`playlist_videos` テーブルで動画とプレイリストを多対多で関連付けます（`playlist_id`, `video_id`）。
+`playlist_migration.sql` を Supabase の SQL Editor で実行してください。
 
 ### subscriptions テーブル
 
@@ -325,6 +341,14 @@ lib/
 - ユーザーフレンドリーなエラーメッセージ
 - null安全性の確保
 
+### 12. プレイリスト機能
+- 動画投稿・編集時にプレイリストを選択（チップUI）
+- 新規プレイリストをダイアログからその場で作成可能
+- チャンネルページに「プレイリスト」タブを追加（画面幅に応じた2〜4列レスポンシブグリッド）
+- プレイリスト詳細画面で収録動画を一覧表示・タップでYouTube起動
+- `PlaylistService` / `CacheKeys.channelPlaylists` によるキャッシュ対応
+- スケルトンスクリーンでロード中のUXを改善
+
 ## トラブルシューティング
 
 ### Supabase接続エラー
@@ -397,17 +421,33 @@ lib/
 ## 今後の拡張案
 
 ### 未実装・改善候補
-- [ ] 動画の編集・削除機能
 - [ ] 投稿者名での検索
 - [ ] いいね・コメント機能
-- [ ] プレイリスト機能
 - [ ] 動画の埋め込み再生
 - [ ] プッシュ通知（新着動画）
 - [ ] 多言語対応
 
 ## バージョン履歴
 
-### v1.5.0 (2026-03-15) - 最新版
+### v1.6.0 (2026-03-15) - 最新版
+- **プレイリスト機能を実装**
+  - `playlists` / `playlist_videos` テーブル追加（`playlist_migration.sql`）
+  - `lib/models/playlist.dart`: `Playlist` / `PlaylistWithMeta` モデル
+  - `lib/services/playlist_service.dart`: プレイリストCRUD・動画関連付け管理
+  - 動画投稿画面（`post_video_screen.dart`）にプレイリスト選択チップUI
+  - 動画編集画面（`my_videos_screen.dart`）にプレイリスト選択追加（初期値読込・保存対応）
+  - 新規プレイリスト作成ダイアログ（投稿・編集どちらからも利用可能）
+  - チャンネルページ（`channel_screen.dart`）に「プレイリスト」タブ追加
+    - 画面幅に応じて2〜4列のレスポンシブグリッド表示
+    - 各カードにサムネイル・動画本数バッジを表示
+  - プレイリスト詳細画面（`playlist_detail_screen.dart`）を新規作成
+    - スケルトンスクリーン・プルトゥリフレッシュ・TTLキャッシュ(3分)対応
+  - スケルトンウィジェット（`skeleton_widgets.dart`）にプレイリストカード用を追加
+  - `CacheKeys.channelPlaylists` によるチャンネルプレイリストのキャッシュ対応
+- **UIダークモード改善**
+  - 動画編集シートのプレイリスト選択チップを既存ダークパレットに統一
+
+### v1.5.0 (2026-03-06)
 - **マイページキャッシュ実装**
   - `CacheService`を使いプロフィールと動画数を5分間キャッシュ
   - プルダウンリフレッシュ（`RefreshIndicator`）対応

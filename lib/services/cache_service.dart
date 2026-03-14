@@ -31,6 +31,10 @@ class CacheKeys {
   /// 特定チャンネルの動画キー
   static String channelVideos(String channelId) =>
       'subscription_videos_$channelId';
+
+  /// 特定チャンネルのプレイリスト一覧キー
+  static String channelPlaylists(String channelId) =>
+      'channel_playlists_$channelId';
 }
 
 /// TTL付きメモリキャッシュのシングルトン

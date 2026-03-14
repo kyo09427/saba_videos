@@ -1,15 +1,18 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import '../../models/playlist.dart';
 import '../../models/user_profile.dart';
 import '../../models/video.dart';
 import '../../models/channel_stats.dart';
+import '../../screens/playlist/playlist_detail_screen.dart';
 import '../../services/cache_service.dart';
+import '../../services/playlist_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/youtube_service.dart';
 import '../../widgets/skeleton_widgets.dart';
 
 /// チャンネル画面
-/// 
-/// 特定のユーザーのチャンネル情報と動画一覧を表示します。
+///
+/// 特定のユーザーのチャンネル情報と動画一覧、プレイリスト一覧を表示します。
 class ChannelScreen extends StatefulWidget {
   final String channelId;
 
@@ -22,14 +25,18 @@ class ChannelScreen extends StatefulWidget {
   State<ChannelScreen> createState() => _ChannelScreenState();
 }
 
-class _ChannelScreenState extends State<ChannelScreen> {
+class _ChannelScreenState extends State<ChannelScreen>
+    with TickerProviderStateMixin {
   final _supabase = SupabaseService.instance.client;
   UserProfile? _channelProfile;
   List<Video> _videos = [];
+  List<PlaylistWithMeta> _playlists = [];
   ChannelStats? _stats;
   bool _isLoading = true;
   bool _isSubscribed = false;
   String? _errorMessage;
+
+  late TabController _tabController;
 
   // デザイン用カラー定義
   final Color _ytBackground = const Color(0xFF0F0F0F);
@@ -41,7 +48,14 @@ class _ChannelScreenState extends State<ChannelScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadChannelData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   /// チャンネルデータを読み込む
@@ -51,19 +65,22 @@ class _ChannelScreenState extends State<ChannelScreen> {
     // ── キャッシュ読み込み（初回表示のみ）──
     if (!isRefresh) {
       final cacheKey = CacheKeys.channelData(widget.channelId);
-      final cached = CacheService.instance
-          .get<Map<String, dynamic>>(cacheKey);
+      final cached =
+          CacheService.instance.get<Map<String, dynamic>>(cacheKey);
       if (cached != null) {
         final profile = cached['profile'] as UserProfile;
         final videos = cached['videos'] as List<Video>;
         final stats = cached['stats'] as ChannelStats;
         final isSubscribed = cached['isSubscribed'] as bool;
+        final playlists =
+            cached['playlists'] as List<PlaylistWithMeta>? ?? [];
         if (mounted) {
           setState(() {
             _channelProfile = profile;
             _videos = videos;
             _stats = stats;
             _isSubscribed = isSubscribed;
+            _playlists = playlists;
             _isLoading = false;
           });
         }
@@ -100,9 +117,18 @@ class _ChannelScreenState extends State<ChannelScreen> {
           .where((v) => v.id.isNotEmpty)
           .toList();
 
+      // プレイリスト一覧を取得
+      List<PlaylistWithMeta> playlists = [];
+      try {
+        playlists = await PlaylistService.instance
+            .getUserPlaylists(widget.channelId);
+      } catch (e) {
+        debugPrint('⚠️ Failed to load playlists: $e');
+      }
+
       // 統計情報を取得
-      final subscriberCount =
-          await SupabaseService.instance.getSubscriberCount(widget.channelId);
+      final subscriberCount = await SupabaseService.instance
+          .getSubscriberCount(widget.channelId);
       final videoCount = videos.length;
 
       final stats = ChannelStats(
@@ -123,7 +149,14 @@ class _ChannelScreenState extends State<ChannelScreen> {
           'videos': videos,
           'stats': stats,
           'isSubscribed': isSubscribed,
+          'playlists': playlists,
         },
+      );
+
+      // プレイリストは専用キーでもキャッシュ
+      CacheService.instance.set<List<PlaylistWithMeta>>(
+        CacheKeys.channelPlaylists(widget.channelId),
+        playlists,
       );
 
       if (mounted) {
@@ -132,6 +165,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
           _videos = videos;
           _stats = stats;
           _isSubscribed = isSubscribed;
+          _playlists = playlists;
           _isLoading = false;
         });
       }
@@ -150,13 +184,17 @@ class _ChannelScreenState extends State<ChannelScreen> {
   Future<void> _toggleSubscription() async {
     try {
       if (_isSubscribed) {
-        await SupabaseService.instance.unsubscribeFromChannel(widget.channelId);
+        await SupabaseService.instance
+            .unsubscribeFromChannel(widget.channelId);
       } else {
         await SupabaseService.instance.subscribeToChannel(widget.channelId);
       }
 
       // キャッシュを無効化して再読み込み
-      CacheService.instance.invalidate(CacheKeys.channelData(widget.channelId));
+      CacheService.instance
+          .invalidate(CacheKeys.channelData(widget.channelId));
+      CacheService.instance
+          .invalidate(CacheKeys.channelPlaylists(widget.channelId));
       CacheService.instance.invalidate(CacheKeys.subscribedChannelIds);
       CacheService.instance.invalidate(CacheKeys.subscriptionVideos);
       await _loadChannelData(isRefresh: true);
@@ -164,7 +202,8 @@ class _ChannelScreenState extends State<ChannelScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isSubscribed ? 'チャンネル登録を解除しました' : 'チャンネル登録しました！'),
+            content: Text(
+                _isSubscribed ? 'チャンネル登録を解除しました' : 'チャンネル登録しました！'),
             backgroundColor: _isSubscribed ? Colors.grey : Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -188,9 +227,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
       _showErrorSnackBar('無効な動画URLです');
       return;
     }
-
     final success = await YouTubeService.launchVideo(video.url);
-    
     if (!success && mounted) {
       _showErrorSnackBar('動画を開けませんでした');
     }
@@ -198,7 +235,6 @@ class _ChannelScreenState extends State<ChannelScreen> {
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
-    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -233,12 +269,12 @@ class _ChannelScreenState extends State<ChannelScreen> {
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 Container(
-                                  width: 160,
-                                  height: 90,
-                                  color: _ytSurface,
-                                  child: Icon(Icons.play_circle_outline,
-                                      color: _textGray, size: 36),
-                                ),
+                              width: 160,
+                              height: 90,
+                              color: _ytSurface,
+                              child: Icon(Icons.play_circle_outline,
+                                  color: _textGray, size: 36),
+                            ),
                           )
                         : Container(
                             width: 160,
@@ -253,9 +289,10 @@ class _ChannelScreenState extends State<ChannelScreen> {
                     bottom: 4,
                     right: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.8),
+                        color: Colors.black.withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
@@ -291,16 +328,103 @@ class _ChannelScreenState extends State<ChannelScreen> {
                   const SizedBox(height: 4),
                   Text(
                     video.relativeTime,
-                    style: TextStyle(
-                      color: _textGray,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: _textGray, fontSize: 12),
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// プレイリストカードを構築（グリッドセル）
+  Widget _buildPlaylistCard(PlaylistWithMeta playlist) {
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) =>
+                PlaylistDetailScreen(playlist: playlist),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // サムネイル
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: playlist.thumbnailUrl != null
+                      ? Image.network(
+                          playlist.thumbnailUrl!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            color: _ytSurface,
+                            child: Icon(Icons.playlist_play,
+                                color: _textGray, size: 40),
+                          ),
+                        )
+                      : Container(
+                          color: _ytSurface,
+                          child: Icon(Icons.playlist_play,
+                              color: _textGray, size: 40),
+                        ),
+                ),
+                // 「N本の動画」バッジ（右下）
+                Positioned(
+                  bottom: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.playlist_play,
+                            color: Colors.white, size: 12),
+                        const SizedBox(width: 2),
+                        Text(
+                          playlist.videoCountLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 5),
+          // プレイリスト名
+          Text(
+            playlist.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _textWhite,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.3,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -320,10 +444,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
         ),
         const SliverToBoxAdapter(child: SkeletonChannelHeader()),
         SliverToBoxAdapter(
-          child: Container(
-            height: 48,
-            color: _ytBackground,
-          ),
+          child: Container(height: 48, color: _ytBackground),
         ),
         const SkeletonSliverList(
           itemBuilder: SkeletonVideoCardSmall.new,
@@ -350,10 +471,8 @@ class _ChannelScreenState extends State<ChannelScreen> {
                       children: [
                         Icon(Icons.error_outline, color: _ytRed, size: 48),
                         const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(color: _textWhite),
-                        ),
+                        Text(_errorMessage!,
+                            style: TextStyle(color: _textWhite)),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _loadChannelData,
@@ -366,253 +485,259 @@ class _ChannelScreenState extends State<ChannelScreen> {
                     onRefresh: () => _loadChannelData(isRefresh: true),
                     color: _ytRed,
                     backgroundColor: _ytSurface,
-                    child: CustomScrollView(
-                    slivers: [
-                      // ヘッダー
-                      SliverAppBar(
-                        floating: true,
-                        backgroundColor: _ytBackground,
-                        elevation: 0,
-                        leading: IconButton(
-                          icon: Icon(Icons.arrow_back, color: _textWhite),
-                          onPressed: () => Navigator.of(context).pop(),
+                    child: NestedScrollView(
+                      headerSliverBuilder:
+                          (context, innerBoxIsScrolled) => [
+                        // ── ナビゲーションバー ──
+                        SliverAppBar(
+                          floating: true,
+                          backgroundColor: _ytBackground,
+                          elevation: 0,
+                          leading: IconButton(
+                            icon: Icon(Icons.arrow_back, color: _textWhite),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          actions: [
+                            IconButton(
+                                icon: Icon(Icons.cast, color: _textWhite),
+                                onPressed: () {}),
+                            IconButton(
+                                icon: Icon(Icons.search, color: _textWhite),
+                                onPressed: () {}),
+                            IconButton(
+                                icon:
+                                    Icon(Icons.more_vert, color: _textWhite),
+                                onPressed: () {}),
+                          ],
                         ),
-                        actions: [
-                          IconButton(
-                            icon: Icon(Icons.cast, color: _textWhite),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.search, color: _textWhite),
-                            onPressed: () {},
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.more_vert, color: _textWhite),
-                            onPressed: () {},
-                          ),
-                        ],
-                      ),
 
-                      // プロフィールセクション
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              // アバターとチャンネル情報
-                              Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 40,
-                                    backgroundColor: Colors.purple,
-                                    backgroundImage: _channelProfile?.avatarUrl != null
-                                        ? NetworkImage(_channelProfile!.avatarUrl!)
-                                        : null,
-                                    child: _channelProfile?.avatarUrl == null
-                                        ? Text(
-                                            _channelProfile?.initials ?? '?',
-                                            style: const TextStyle(
-                                                color: Colors.white, fontSize: 28),
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _channelProfile?.username ?? '不明',
-                                          style: TextStyle(
-                                            color: _textWhite,
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold,
+                        // ── プロフィールセクション ──
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 40,
+                                      backgroundColor: Colors.purple,
+                                      backgroundImage:
+                                          _channelProfile?.avatarUrl != null
+                                              ? NetworkImage(
+                                                  _channelProfile!.avatarUrl!)
+                                              : null,
+                                      child:
+                                          _channelProfile?.avatarUrl == null
+                                              ? Text(
+                                                  _channelProfile?.initials ??
+                                                      '?',
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 28),
+                                                )
+                                              : null,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _channelProfile?.username ?? '不明',
+                                            style: TextStyle(
+                                              color: _textWhite,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '登録者 ${_stats?.subscriberCount ?? 0}人 • 動画 ${_stats?.videoCount ?? 0}本',
-                                          style: TextStyle(
-                                            color: _textGray,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        if (_channelProfile?.bio != null &&
-                                            _channelProfile!.bio!.isNotEmpty) ...[
                                           const SizedBox(height: 4),
                                           Text(
-                                            _channelProfile!.bio!,
+                                            '登録者 ${_stats?.subscriberCount ?? 0}人 • 動画 ${_stats?.videoCount ?? 0}本',
                                             style: TextStyle(
-                                              color: _textGray,
-                                              fontSize: 11,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
+                                                color: _textGray,
+                                                fontSize: 12),
                                           ),
+                                          if (_channelProfile?.bio != null &&
+                                              _channelProfile!
+                                                  .bio!.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _channelProfile!.bio!,
+                                              style: TextStyle(
+                                                  color: _textGray,
+                                                  fontSize: 11),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
                                         ],
-                                      ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (!isOwnChannel) ...[
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _toggleSubscription,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _isSubscribed
+                                            ? _ytSurface
+                                            : _textWhite,
+                                        foregroundColor: _isSubscribed
+                                            ? _textWhite
+                                            : Colors.black,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _isSubscribed ? '登録済み' : '登録',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
-                              ),
-                              
-                              // 登録ボタン（自分のチャンネルの場合は非表示）
-                              if (!isOwnChannel) ...[
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _toggleSubscription,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _isSubscribed
-                                          ? _ytSurface
-                                          : _textWhite,
-                                      foregroundColor: _isSubscribed
-                                          ? _textWhite
-                                          : Colors.black,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(24),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      _isSubscribed ? '登録済み' : '登録',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
 
-                      // タブバー
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _SliverAppBarDelegate(
-                          minHeight: 48,
-                          maxHeight: 48,
-                          child: Container(
+                        // ── タブバー ──
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _SliverTabBarDelegate(
+                            tabBar: TabBar(
+                              controller: _tabController,
+                              indicatorColor: _textWhite,
+                              labelColor: _textWhite,
+                              unselectedLabelColor: _textGray,
+                              labelStyle: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold),
+                              unselectedLabelStyle:
+                                  const TextStyle(fontSize: 14),
+                              tabs: const [
+                                Tab(text: '動画'),
+                                Tab(text: 'プレイリスト'),
+                              ],
+                            ),
                             color: _ytBackground,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: _textWhite,
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '動画',
-                                      style: TextStyle(
-                                        color: _textWhite,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'ショート',
-                                      style: TextStyle(
-                                        color: _textGray,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'プレイリスト',
-                                      style: TextStyle(
-                                        color: _textGray,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
+                      ],
+                      body: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          // ── 動画タブ ──
+                          _videos.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.video_library_outlined,
+                                          size: 80, color: _ytSurface),
+                                      const SizedBox(height: 16),
+                                      Text('動画がありません',
+                                          style:
+                                              TextStyle(color: _textGray)),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _videos.length,
+                                  itemBuilder: (context, index) =>
+                                      _buildVideoCard(_videos[index]),
+                                ),
+
+                          // ── プレイリストタブ ──
+                          _playlists.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.playlist_play_outlined,
+                                          size: 80, color: _ytSurface),
+                                      const SizedBox(height: 16),
+                                      Text('プレイリストがありません',
+                                          style:
+                                              TextStyle(color: _textGray)),
+                                    ],
+                                  ),
+                                )
+                              // レスポンシブグリッド（画面幅に応じて列数・カードサイズを自動調整）
+                              : LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final width = constraints.maxWidth;
+                                    // 幅に応じた列数（モバイル2列、タブ3列、デスク4列）
+                                    final cols = width < 400
+                                        ? 2
+                                        : width < 700
+                                            ? 3
+                                            : 4;
+                                    // サムネイル(16:9) + テキスト2行分
+                                    final cardW =
+                                        (width - 10.0 * (cols + 1)) / cols;
+                                    final cardH = cardW * 9 / 16 + 46;
+                                    return GridView.builder(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 8),
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: cols,
+                                        mainAxisSpacing: 12,
+                                        crossAxisSpacing: 10,
+                                        childAspectRatio: cardW / cardH,
+                                      ),
+                                      itemCount: _playlists.length,
+                                      itemBuilder: (context, index) =>
+                                          _buildPlaylistCard(
+                                              _playlists[index]),
+                                    );
+                                  },
+                                ),
+                        ],
                       ),
-
-                      // 動画一覧
-                      if (_videos.isEmpty)
-                        SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.video_library_outlined,
-                                    size: 80, color: _ytSurface),
-                                const SizedBox(height: 16),
-                                Text('動画がありません', style: TextStyle(color: _textGray)),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              return _buildVideoCard(_videos[index]);
-                            },
-                            childCount: _videos.length,
-                          ),
-                        ),
-
-                      const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                    ],
+                    ),
                   ),
-                  ), // RefreshIndicator
       ),
     );
   }
 }
 
-/// SliverPersistentHeader用のデリゲート
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final double minHeight;
-  final double maxHeight;
-  final Widget child;
+/// TabBar用 SliverPersistentHeaderDelegate
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  final Color color;
 
-  _SliverAppBarDelegate({
-    required this.minHeight,
-    required this.maxHeight,
-    required this.child,
-  });
+  _SliverTabBarDelegate({required this.tabBar, required this.color});
 
   @override
-  double get minExtent => minHeight;
+  double get minExtent => tabBar.preferredSize.height;
 
   @override
-  double get maxExtent => maxHeight;
+  double get maxExtent => tabBar.preferredSize.height;
 
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(child: child);
+    return Container(color: color, child: tabBar);
   }
 
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return maxHeight != oldDelegate.maxHeight ||
-        minHeight != oldDelegate.minHeight ||
-        child != oldDelegate.child;
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar || color != oldDelegate.color;
   }
 }

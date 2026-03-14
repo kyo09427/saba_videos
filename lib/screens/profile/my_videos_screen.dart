@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../models/playlist.dart';
 import '../../models/video.dart';
 import '../../services/cache_service.dart';
+import '../../services/playlist_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/youtube_service.dart';
 import '../../widgets/skeleton_widgets.dart';
@@ -566,6 +568,11 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
   late List<String> _tags;
   bool _isLoading = false;
 
+  // プレイリスト関連
+  List<Playlist> _myPlaylists = [];
+  final Set<String> _selectedPlaylistIds = {};
+  bool _isLoadingPlaylists = false;
+
   final List<String> _categories = ['雑談', 'ゲーム', '音楽', 'ネタ', 'その他'];
 
   @override
@@ -575,6 +582,91 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
     _tagInputController = TextEditingController();
     _selectedCategory = widget.video.mainCategory;
     _tags = List.from(widget.video.tags);
+    _loadPlaylists();
+  }
+
+  /// プレイリスト一覧と現在の関連付けを読み込む
+  Future<void> _loadPlaylists() async {
+    setState(() => _isLoadingPlaylists = true);
+    try {
+      final results = await Future.wait([
+        PlaylistService.instance.getMyPlaylists(),
+        PlaylistService.instance.getVideoPlaylistIds(widget.video.id),
+      ]);
+      if (mounted) {
+        setState(() {
+          _myPlaylists = results[0] as List<Playlist>;
+          _selectedPlaylistIds.addAll(
+              (results[1] as List<String>));
+          _isLoadingPlaylists = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingPlaylists = false);
+    }
+  }
+
+  /// 新しいプレイリストを作成するダイアログ
+  Future<void> _showCreatePlaylistDialog() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF272727),
+        title: const Text('新しいプレイリスト',
+            style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          maxLength: 50,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'プレイリスト名',
+            labelStyle: TextStyle(color: Colors.white70),
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) {
+            if (v.trim().isNotEmpty) Navigator.of(ctx).pop(v.trim());
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('キャンセル',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isNotEmpty) Navigator.of(ctx).pop(name);
+            },
+            child: const Text('作成'),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+    if (result == null || !mounted) return;
+
+    try {
+      final newPlaylist =
+          await PlaylistService.instance.createPlaylist(result);
+      if (mounted) {
+        setState(() {
+          _myPlaylists.insert(0, newPlaylist);
+          _selectedPlaylistIds.add(newPlaylist.id);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('プレイリスト作成に失敗しました: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -649,6 +741,12 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
         }
       }
 
+      // プレイリストの関連付けを更新
+      await PlaylistService.instance.setVideoPlaylists(
+        widget.video.id,
+        _selectedPlaylistIds.toList(),
+      );
+
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -665,6 +763,111 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// プレイリスト選択セクション（ダークモード対応）
+  Widget _buildPlaylistSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ラベル
+        Row(
+          children: [
+            const Icon(Icons.playlist_add, color: Colors.white54, size: 17),
+            const SizedBox(width: 6),
+            const Text(
+              'プレイリスト',
+              style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // ローディング中
+        if (_isLoadingPlaylists)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.blue[300]),
+            ),
+          )
+        // プレイリストなし
+        else if (_myPlaylists.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'まだプレイリストがありません',
+              style: TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+          )
+        // チップ一覧
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: _myPlaylists.map((pl) {
+              final selected = _selectedPlaylistIds.contains(pl.id);
+              return FilterChip(
+                label: Text(
+                  pl.name,
+                  style: TextStyle(
+                    color: selected ? Colors.white : Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                selected: selected,
+                backgroundColor: const Color(0xFF1E1E1E),
+                selectedColor: const Color(0xFF1A3A5C),
+                checkmarkColor: const Color(0xFF64B5F6),
+                side: BorderSide(
+                  color: selected
+                      ? const Color(0xFF64B5F6)
+                      : const Color(0xFF3A3A3A),
+                  width: 1,
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 2),
+                onSelected: (value) {
+                  setState(() {
+                    if (value) {
+                      _selectedPlaylistIds.add(pl.id);
+                    } else {
+                      _selectedPlaylistIds.remove(pl.id);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+          ),
+
+        const SizedBox(height: 10),
+
+        // 新規作成ボタン
+        OutlinedButton.icon(
+          onPressed: _showCreatePlaylistDialog,
+          icon: const Icon(Icons.add_circle_outline,
+              size: 15, color: Color(0xFF64B5F6)),
+          label: const Text(
+            '新しいプレイリスト',
+            style:
+                TextStyle(color: Color(0xFF64B5F6), fontSize: 12),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFF1A3A5C)),
+            backgroundColor: const Color(0xFF0D1A26),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -909,6 +1112,11 @@ class _EditVideoSheetState extends State<_EditVideoSheet> {
                               .toList(),
                         ),
                       ],
+
+                      const SizedBox(height: 14),
+
+                      // プレイリスト選択
+                      _buildPlaylistSection(),
 
                       const SizedBox(height: 24),
 

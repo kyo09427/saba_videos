@@ -305,3 +305,61 @@ class SkeletonSliverList extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// SkeletonPlaylistCard：プレイリストタブのグリッドカード用
+// ─────────────────────────────────────────────────────────────
+
+/// プレイリストグリッドカード用スケルトン
+class SkeletonPlaylistCard extends StatelessWidget {
+  const SkeletonPlaylistCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // サムネイル（16:9）
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: SkeletonBox(
+            width: double.infinity,
+            borderRadius: 8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // プレイリスト名
+        const SkeletonBox(width: double.infinity, height: 13),
+        const SizedBox(height: 5),
+        // 動画本数バッジ
+        const SkeletonBox(width: 70, height: 11),
+      ],
+    );
+  }
+}
+
+/// プレイリスト用スケルトン（2列グリッド）を Sliver で表示
+class SkeletonPlaylistSliverGrid extends StatelessWidget {
+  final int itemCount;
+
+  const SkeletonPlaylistSliverGrid({super.key, this.itemCount = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.all(12),
+      sliver: SliverGrid(
+        delegate: SliverChildBuilderDelegate(
+          (_, __) => const SkeletonPlaylistCard(),
+          childCount: itemCount,
+        ),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.78,
+        ),
+      ),
+    );
+  }
+}
