@@ -1,5 +1,0 @@
-/* SPA fallback - all routes go to index.html */
-/* https://developers.cloudflare.com/pages/configuration/serving-pages/#single-page-application-spa-rendering */
-/*
-  /index.html   200
-*/
