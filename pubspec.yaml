@@ -56,7 +56,7 @@ dependencies:
   # Image processing for WebP compression
   image: ^4.1.7
 
-  # HTTP client for Discord API calls
+  # HTTP client for YouTube oEmbed API / Discord API calls
   http: ^1.2.2
 
 dev_dependencies:

@@ -1,5 +1,25 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+
+/// YouTube oEmbed APIのレスポンスを格納するデータクラス
+class YouTubeVideoInfo {
+  /// 動画タイトル
+  final String title;
+
+  /// サムネイルURL
+  final String? thumbnailUrl;
+
+  /// チャンネル（投稿者）名
+  final String? authorName;
+
+  const YouTubeVideoInfo({
+    required this.title,
+    this.thumbnailUrl,
+    this.authorName,
+  });
+}
 
 /// サムネイル画質の種類
 enum ThumbnailQuality {
@@ -386,6 +406,135 @@ class YouTubeService {
       return uri.pathSegments.contains('shorts');
     } catch (e) {
       return false;
+    }
+  }
+
+  /// YouTube oEmbed APIを使って動画情報（タイトル・サムネイル・チャンネル名）を取得
+  ///
+  /// APIキー不要。ただし動画が非公開の場合や存在しない場合はnullを返します。
+  ///
+  /// [url] YouTube動画のURL
+  ///
+  /// Returns: YouTubeVideoInfo、取得失敗の場合null
+  static Future<YouTubeVideoInfo?> fetchVideoInfo(String url) async {
+    if (url.trim().isEmpty) {
+      return null;
+    }
+
+    final videoId = extractVideoId(url);
+    if (videoId == null) {
+      return null;
+    }
+
+    try {
+      final normalizedUrl = 'https://www.youtube.com/watch?v=$videoId';
+      final apiUrl = Uri.parse(
+        'https://www.youtube.com/oembed?format=json&url=${Uri.encodeComponent(normalizedUrl)}',
+      );
+
+      final response = await http.get(apiUrl).timeout(
+        const Duration(seconds: 8),
+      );
+
+      if (response.statusCode != 200) {
+        if (kDebugMode) {
+          debugPrint('⚠️ oEmbed API returned ${response.statusCode} for $url');
+        }
+        return null;
+      }
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+
+      return YouTubeVideoInfo(
+        title: (json['title'] as String? ?? '').trim(),
+        thumbnailUrl: json['thumbnail_url'] as String?,
+        authorName: json['author_name'] as String?,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ Error fetching YouTube video info: $e');
+      }
+      return null;
+    }
+  }
+
+  /// YouTubeページのHTMLから動画の再生時間を取得
+  ///
+  /// YouTubeページ内の `lengthSeconds` フィールドを正規表現で抽出します。
+  /// APIキー不要ですが、Flutter Web（Chrome）ではCORSにより取得できない場合があります。
+  /// その場合はnullを返し、ユーザーが手動入力できます。
+  ///
+  /// [url] YouTube動画のURL
+  ///
+  /// Returns: "M:SS" または "H:MM:SS" 形式の文字列、取得失敗の場合null
+  static Future<String?> fetchVideoDuration(String url) async {
+    final videoId = extractVideoId(url);
+    if (videoId == null) return null;
+
+    try {
+      final pageUrl = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+      final response = await http
+          .get(pageUrl, headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'ja,en;q=0.9',
+          })
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return null;
+
+      final body = response.body;
+
+      // "lengthSeconds":"N..." または "lengthSeconds":N のパターンを探す
+      final patterns = [
+        RegExp(r'"lengthSeconds"\s*:\s*"(\d+)"'),
+        RegExp(r'"lengthSeconds"\s*:\s*(\d+)'),
+        RegExp(r'approxDurationMs\\":\\"(\d+)\\"'),
+      ];
+
+      for (final pattern in patterns) {
+        final match = pattern.firstMatch(body);
+        if (match != null) {
+          final rawValue = match.group(1);
+          if (rawValue == null) continue;
+
+          int seconds;
+          if (pattern.pattern.contains('approxDurationMs')) {
+            seconds = (int.parse(rawValue) / 1000).round();
+          } else {
+            seconds = int.parse(rawValue);
+          }
+
+          if (seconds > 0) {
+            return _secondsToDurationString(seconds);
+          }
+        }
+      }
+
+      if (kDebugMode) {
+        debugPrint('⚠️ Could not extract duration from YouTube page for $videoId');
+      }
+      return null;
+    } catch (e) {
+      // Flutter Webでは CORS エラーが発生するため静かにnullを返す
+      if (kDebugMode) {
+        debugPrint('⚠️ fetchVideoDuration failed (may be CORS on web): $e');
+      }
+      return null;
+    }
+  }
+
+  /// 秒数を "M:SS" または "H:MM:SS" 形式に変換
+  static String _secondsToDurationString(int totalSeconds) {
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = seconds.toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:$mm:$ss';
+    } else {
+      return '$minutes:$ss';
     }
   }
 }

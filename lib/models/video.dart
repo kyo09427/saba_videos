@@ -32,6 +32,12 @@ class Video {
   /// 投稿者のプロフィール情報（JOIN時のみ取得）
   final UserProfile? userProfile;
 
+  /// 再生時間（主観入力）例: "12:45" や "1:23:45"
+  final String? duration;
+
+  /// YouTube oEmbed APIで取得したタイトル
+  final String? youtubeTitle;
+
   const Video({
     required this.id,
     required this.createdAt,
@@ -41,6 +47,8 @@ class Video {
     required this.mainCategory,
     this.tags = const [],
     this.userProfile,
+    this.duration,
+    this.youtubeTitle,
   });
 
   /// Supabaseから取得したJSONデータからVideoオブジェクトを生成
@@ -71,6 +79,8 @@ class Video {
         userId: _extractString(json, 'user_id', ''),
         mainCategory: _extractString(json, 'main_category', '雑談'),
         tags: tagsList,
+        duration: json['duration'] as String?,
+        youtubeTitle: json['youtube_title'] as String?,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -121,6 +131,8 @@ class Video {
         mainCategory: _extractString(json, 'main_category', '雑談'),
         tags: tagsList,
         userProfile: profile,
+        duration: json['duration'] as String?,
+        youtubeTitle: json['youtube_title'] as String?,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -224,6 +236,8 @@ class Video {
       'url': url,
       'user_id': userId,
       'main_category': mainCategory,
+      if (duration != null && duration!.isNotEmpty) 'duration': duration,
+      if (youtubeTitle != null && youtubeTitle!.isNotEmpty) 'youtube_title': youtubeTitle,
     };
   }
 
@@ -404,6 +418,8 @@ class Video {
     String? mainCategory,
     List<String>? tags,
     UserProfile? userProfile,
+    String? duration,
+    String? youtubeTitle,
   }) {
     return Video(
       id: id ?? this.id,
@@ -414,6 +430,8 @@ class Video {
       mainCategory: mainCategory ?? this.mainCategory,
       tags: tags ?? this.tags,
       userProfile: userProfile ?? this.userProfile,
+      duration: duration ?? this.duration,
+      youtubeTitle: youtubeTitle ?? this.youtubeTitle,
     );
   }
 
