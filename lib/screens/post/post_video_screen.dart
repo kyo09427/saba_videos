@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../models/playlist.dart';
 import '../../models/video.dart';
@@ -568,7 +569,9 @@ class _PostVideoScreenState extends State<PostVideoScreen> {
                   prefixIcon: const Icon(Icons.timer_outlined),
                   helperText: _durationAutoFetched
                       ? 'URLから自動取得しました（修正可能）'
-                      : 'URL入力で自動取得。例: "12:45" または "1:23:45"',
+                      : kIsWeb
+                          ? 'Web版では自動取得できません。手動で入力してください。例: "12:45"'
+                          : 'URL入力で自動取得。例: "12:45" または "1:23:45"',
                   helperStyle: _durationAutoFetched
                       ? const TextStyle(color: Colors.green)
                       : null,

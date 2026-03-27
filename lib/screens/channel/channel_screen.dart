@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../models/playlist.dart';
 import '../../models/user_profile.dart';
 import '../../models/video.dart';
@@ -203,7 +203,7 @@ class _ChannelScreenState extends State<ChannelScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                _isSubscribed ? 'チャンネル登録を解除しました' : 'チャンネル登録しました！'),
+                _isSubscribed ? 'チャンネル登録しました！' : 'チャンネル登録を解除しました'),
             backgroundColor: _isSubscribed ? Colors.grey : Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -284,27 +284,28 @@ class _ChannelScreenState extends State<ChannelScreen>
                                 color: _textGray, size: 36),
                           ),
                   ),
-                  // 時間表示（ダミー）
-                  Positioned(
-                    bottom: 4,
-                    right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        '12:45',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
+                  // 時間表示（durationが設定されている場合のみ表示）
+                  if (video.duration != null && video.duration!.isNotEmpty)
+                    Positioned(
+                      bottom: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          video.duration!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

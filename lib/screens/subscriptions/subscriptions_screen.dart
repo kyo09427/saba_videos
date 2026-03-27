@@ -256,11 +256,11 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     if (_selectedCategoryFilter == 'すべて') {
       _filteredVideos = List.from(_videos);
     } else if (_selectedCategoryFilter == '新しい動画') {
-      // 最新の動画（24時間以内）
+      // 最新の動画（1週間以内）
       final now = DateTime.now();
       _filteredVideos = _videos.where((video) {
         final diff = now.difference(video.createdAt);
-        return diff.inHours <= 24;
+        return diff.inDays <= 7;
       }).toList();
     } else {
       // カテゴリでフィルタリング
@@ -380,25 +380,26 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                         ),
                       ),
               ),
-              // 時間表示バッジ (ダミー)
-              Positioned(
-                bottom: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    '12:45',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500),
+              // 時間表示バッジ（durationが設定されている場合のみ表示）
+              if (video.duration != null && video.duration!.isNotEmpty)
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      video.duration!,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           // 動画詳細情報（グリッド用に簡略化）
