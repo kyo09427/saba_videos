@@ -1,0 +1,114 @@
+name: Build Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'バージョン名 (例: 1.0.1)'
+        required: true
+        default: '1.0.0'
+      version_code:
+        description: 'ビルド番号 (整数, 例: 2)'
+        required: true
+        default: '1'
+      release_notes:
+        description: 'リリースノート（変更内容の概要）'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # GitHub Release の作成・アップロードに必要
+
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Flutter のセットアップ
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Java のセットアップ (Keystoreのデコードに使用)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: .env ファイルの作成
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "SHARED_PASSWORD=${{ secrets.SHARED_PASSWORD }}" >> .env
+          echo "DISCORD_GUILD_ID=${{ secrets.DISCORD_GUILD_ID }}" >> .env
+
+      - name: Keystore ファイルのデコード
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $RUNNER_TEMP/release.keystore
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
+
+      - name: 依存関係のインストール
+        run: flutter pub get
+
+      - name: リリース APK のビルド
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          flutter build apk --release \
+            --build-name=${{ inputs.version_name }} \
+            --build-number=${{ inputs.version_code }}
+
+      - name: APK ファイルのリネーム
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/saba_videos_v${{ inputs.version_name }}.apk
+
+      # 自動アップデート機能向け: アプリが参照するバージョン情報JSONを生成
+      - name: latest.json の生成
+        run: |
+          cat > build/app/outputs/flutter-apk/latest.json << EOF
+          {
+            "version_name": "${{ inputs.version_name }}",
+            "version_code": ${{ inputs.version_code }},
+            "download_url": "https://github.com/${{ github.repository }}/releases/download/v${{ inputs.version_name }}/saba_videos_v${{ inputs.version_name }}.apk",
+            "release_notes": "${{ inputs.release_notes }}",
+            "released_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          }
+          EOF
+
+      - name: GitHub Release の作成と APK アップロード
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version_name }}
+          name: v${{ inputs.version_name }}
+          body: |
+            ## saba_videos v${{ inputs.version_name }}
+
+            **ビルド番号:** ${{ inputs.version_code }}
+
+            ### 変更内容
+            ${{ inputs.release_notes }}
+
+            ---
+            ### インストール方法
+            1. 下記の `saba_videos_v${{ inputs.version_name }}.apk` をダウンロード
+            2. Android の設定で「提供元不明のアプリ」を許可してインストール
+
+            ### 自動アップデート用 JSON
+            アプリのアップデートチェックは `latest.json` を参照してください。
+          draft: false
+          prerelease: false
+          files: |
+            build/app/outputs/flutter-apk/saba_videos_v${{ inputs.version_name }}.apk
+            build/app/outputs/flutter-apk/latest.json
+
+      - name: ビルド成果物をアーティファクトとして保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-v${{ inputs.version_name }}
+          path: build/app/outputs/flutter-apk/saba_videos_v${{ inputs.version_name }}.apk
+          retention-days: 30
