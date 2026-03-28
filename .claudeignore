@@ -1,0 +1,76 @@
+# =============================
+# Flutter / Dart ビルド成果物
+# =============================
+build/
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# Android / iOS ビルド成果物
+android/build/
+android/app/debug/
+android/app/profile/
+android/app/release/
+ios/build/
+ios/Flutter/.last_build_id
+
+# =============================
+# 依存パッケージ（Node.js等）
+# =============================
+node_modules/
+
+# =============================
+# 大きなログ・一時ファイル
+# =============================
+*.log
+diff.txt
+diff_screens.txt
+diff_utf8.txt
+git_status.txt
+
+# =============================
+# バイナリ・メディアファイル
+# =============================
+*.apk
+*.aab
+*.ipa
+*.exe
+*.dll
+*.so
+*.dylib
+*.jar
+*.zip
+*.tar.gz
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.mp4
+*.mov
+*.avi
+
+# =============================
+# IDE・エディタ設定
+# =============================
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# =============================
+# 自動生成ファイル
+# =============================
+pubspec.lock
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+coverage/
+
+# =============================
+# デザインサンプル・作業用HTML
+# =============================
+タイムライン（例）.html
+チャンネル画面(サンプル).html
