@@ -50,10 +50,10 @@ jobs:
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
 
       - name: firebase_options.dart の作成
-        run: echo "${{ secrets.FIREBASE_OPTIONS_DART_B64 }}" | tr -d ' \n' | base64 -d > lib/firebase_options.dart
+        run: echo "${{ secrets.FIREBASE_OPTIONS_DART_B64 }}" | tr -d '[:space:]' | base64 -d > lib/firebase_options.dart
 
       - name: google-services.json の作成
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | tr -d ' \n' | base64 -d > android/app/google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | tr -d '[:space:]' | base64 -d > android/app/google-services.json
 
       - name: 依存関係のインストール
         run: flutter pub get

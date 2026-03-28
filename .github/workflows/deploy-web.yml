@@ -30,7 +30,7 @@ jobs:
           echo "DISCORD_GUILD_ID=${{ secrets.DISCORD_GUILD_ID }}" >> .env
 
       - name: Create firebase_options.dart
-        run: echo "${{ secrets.FIREBASE_OPTIONS_DART_B64 }}" | base64 -d > lib/firebase_options.dart
+        run: echo "${{ secrets.FIREBASE_OPTIONS_DART_B64 }}" | tr -d '[:space:]' | base64 -d > lib/firebase_options.dart
 
       - name: Install dependencies
         run: flutter pub get
