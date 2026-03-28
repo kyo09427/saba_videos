@@ -1,6 +1,8 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'firebase_options.dart';
 import 'services/supabase_service.dart';
 import 'services/discord_auth_service.dart';
 import 'services/notification_service.dart';
@@ -12,6 +14,11 @@ void main() async {
 
   // 日本語ロケールの初期化
   await initializeDateFormatting('ja_JP', null);
+
+  // Firebaseの初期化（プッシュ通知に必要）
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Supabaseの初期化
   try {
@@ -394,6 +401,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           if (_guildVerified || _isVerifyingGuild != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
+                NotificationService.instance.clearFcmToken();
                 NotificationService.instance.dispose();
                 setState(() {
                   _guildVerified = false;

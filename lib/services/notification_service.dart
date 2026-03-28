@@ -1,17 +1,28 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
 import 'supabase_service.dart';
 
-/// アプリ内通知を管理するシングルトンサービス。
+/// バックグラウンド/終了状態でのFCMメッセージハンドラ。
+/// トップレベル関数である必要がある。
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // バックグラウンドでは FCM SDK が自動的に通知を表示するため、
+  // ここでは未読数の更新はできない（Isolateが分離しているため）。
+  // アプリ復帰時に refreshUnreadCount() が呼ばれて同期される。
+  debugPrint('📲 バックグラウンド通知受信: ${message.notification?.title}');
+}
+
+/// アプリ内通知 + プッシュ通知を管理するシングルトンサービス。
 ///
 /// 責務:
-///   - 通知一覧の取得・キャッシュ
+///   - 通知一覧の取得
 ///   - 未読数の管理（[unreadCount] ValueNotifier）
 ///   - Supabase Realtime による新着通知のリアルタイム受信
 ///   - 既読処理
-///
-/// 将来のプッシュ通知実装時は [registerFcmToken] を有効化する。
+///   - FCM トークンの取得・Supabase への保存
+///   - フォアグラウンド時の FCM メッセージ受信
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -27,10 +38,12 @@ class NotificationService {
   // 初期化 / 破棄
   // ------------------------------------------------------------------
 
-  /// ログイン後に呼び出す。未読数取得と Realtime 購読を開始する。
+  /// ログイン後に呼び出す。
+  /// 未読数取得・Realtime購読・FCM初期化を行う。
   Future<void> initialize() async {
     await refreshUnreadCount();
     _subscribeRealtime();
+    await _initFcm();
   }
 
   /// ログアウト時に呼び出す。購読を解除し未読数をリセットする。
@@ -38,6 +51,60 @@ class NotificationService {
     await _realtimeChannel?.unsubscribe();
     _realtimeChannel = null;
     unreadCount.value = 0;
+  }
+
+  // ------------------------------------------------------------------
+  // FCM 初期化
+  // ------------------------------------------------------------------
+
+  /// FCMの権限要求・トークン取得・フォアグラウンド受信設定を行う。
+  Future<void> _initFcm() async {
+    // Web は Android 対応完了後に別途実装予定のためスキップ
+    if (kIsWeb) return;
+
+    // バックグラウンドハンドラを登録（アプリ起動前に設定する必要がある）
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // 通知権限を要求（Android 13+ / iOS）
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+        settings.authorizationStatus != AuthorizationStatus.provisional) {
+      debugPrint('🔕 通知権限が拒否されました');
+      return;
+    }
+
+    // FCMトークンを取得してSupabaseに保存
+    final token = await FirebaseMessaging.instance.getToken();
+    if (token != null) {
+      await registerFcmToken(token);
+    }
+
+    // トークンが更新された場合も保存
+    FirebaseMessaging.instance.onTokenRefresh.listen(registerFcmToken);
+
+    // フォアグラウンド時の通知表示を有効化
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // フォアグラウンド時のメッセージ受信 → アプリ内の未読数をインクリメント
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('📲 フォアグラウンド通知受信: ${message.notification?.title}');
+      unreadCount.value += 1;
+    });
+
+    // 通知タップでアプリが起動した場合
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      debugPrint('📲 通知タップでアプリ起動: ${message.notification?.title}');
+      // 必要に応じて特定画面への遷移ロジックをここに追加
+    });
   }
 
   // ------------------------------------------------------------------
@@ -156,25 +223,38 @@ class NotificationService {
   }
 
   // ------------------------------------------------------------------
-  // 将来のプッシュ通知対応（スタブ）
+  // FCM トークン管理
   // ------------------------------------------------------------------
 
   /// FCM デバイストークンを profiles テーブルに保存する。
-  ///
-  /// 使用方法:
-  ///   1. push_notifications_migration.sql を実行して
-  ///      profiles.fcm_token カラムを追加する
-  ///   2. pubspec.yaml に firebase_core / firebase_messaging を追加する
-  ///   3. 以下のコメントを外して実装する
   Future<void> registerFcmToken(String token) async {
-    // TODO: push_notifications_migration.sql 実行後に有効化する
-    //
-    // final userId = _client.auth.currentUser?.id;
-    // if (userId == null) return;
-    // await _client
-    //     .from('profiles')
-    //     .update({'fcm_token': token})
-    //     .eq('id', userId);
-    debugPrint('📌 registerFcmToken: 未実装（push_notifications_migration.sql 参照）');
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      await _client
+          .from('profiles')
+          .update({'fcm_token': token})
+          .eq('id', userId);
+
+      debugPrint('✅ FCMトークンを登録しました');
+    } catch (e) {
+      debugPrint('❌ NotificationService.registerFcmToken: $e');
+    }
+  }
+
+  /// ログアウト時にFCMトークンを削除する（他のデバイスへの誤送信を防ぐ）。
+  Future<void> clearFcmToken() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      await _client
+          .from('profiles')
+          .update({'fcm_token': null})
+          .eq('id', userId);
+    } catch (e) {
+      debugPrint('❌ NotificationService.clearFcmToken: $e');
+    }
   }
 }

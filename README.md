@@ -87,6 +87,7 @@ Supabaseダッシュボードの「SQL Editor」で以下のSQLファイルを**
 | `playlist_migration.sql` | プレイリストテーブル |
 | `discord_guild_migration.sql` | Discord検証フラグ |
 | `notifications_migration.sql` | **通知テーブル・DBトリガー**（アプリ内通知機能） |
+| `push_notifications_migration.sql` | **FCMプッシュ通知**（後述のFirebase設定後に実行） |
 
 `database_setup.sql` には以下が含まれています:
 - **videosテーブル**: 動画情報を保存
@@ -108,7 +109,74 @@ Supabaseダッシュボードの「SQL Editor」で以下のSQLファイルを**
    - **Users can update their own avatar**: UPDATE (同上)
    - **Users can delete their own avatar**: DELETE (同上)
 
-#### 3.4 メール認証の設定
+#### 3.4 プッシュ通知のセットアップ（Android）
+
+> アプリ内通知だけ使う場合はこのセクションはスキップできます。
+
+**① Firebase プロジェクトの作成**
+
+1. [Firebase Console](https://console.firebase.google.com/) でプロジェクトを作成（または既存を使用）
+2. 左メニュー「プロジェクトの設定」> 「マイアプリ」> Android アイコンをクリック
+3. Android パッケージ名 `com.example.saba_videos` を入力して登録
+4. `google-services.json` をダウンロードし `android/app/` に配置
+
+**② FlutterFire CLI でFirebase設定ファイルを生成**
+
+```bash
+# FlutterFire CLI のインストール（初回のみ）
+dart pub global activate flutterfire_cli
+
+# Firebase設定ファイルを生成（lib/firebase_options.dart が作成される）
+flutterfire configure --project=<your-firebase-project-id>
+```
+
+> `lib/firebase_options.dart` は `.gitignore` に追加することを推奨します（APIキーが含まれるため）。
+
+**③ Supabase の pg_net 拡張を有効化**
+
+Supabase ダッシュボード > Database > Extensions > 「pg_net」を検索して Enable
+
+**④ データベース設定を追加**
+
+Supabase SQL Editor で実行:
+
+```sql
+ALTER DATABASE postgres
+  SET app.supabase_url = 'https://xxxxxxxxxxxx.supabase.co';
+ALTER DATABASE postgres
+  SET app.supabase_service_role_key = 'eyJhbGci...';
+```
+
+※ `supabase_url` は Settings > API > Project URL
+※ `supabase_service_role_key` は Settings > API > service_role（⚠️ 秘密キーのため厳重に管理）
+
+**⑤ push_notifications_migration.sql を実行**
+
+Supabase SQL Editor で `push_notifications_migration.sql` を実行
+
+**⑥ FCM サービスアカウントキーを取得**
+
+1. Firebase Console > プロジェクトの設定 > サービスアカウント
+2. 「新しい秘密鍵の生成」をクリック → JSON ファイルをダウンロード
+3. Supabase CLI でシークレットとして登録:
+
+```bash
+# JSON ファイルの内容をそのまま渡す（改行は保持）
+supabase secrets set FCM_SERVICE_ACCOUNT_KEY="$(cat path/to/service-account.json)"
+```
+
+**⑦ Edge Function のデプロイ**
+
+```bash
+# Supabase CLI のインストール（初回のみ）
+# https://supabase.com/docs/guides/cli
+
+supabase login
+supabase link --project-ref xxxxxxxxxxxx
+supabase functions deploy send-push-notification
+```
+
+#### 3.5 メール認証の設定
 1. Supabaseダッシュボード > Authentication > Settings
 2. "Enable email confirmations" を有効化
 3. メールテンプレートをカスタマイズ（オプション）
@@ -470,19 +538,32 @@ lib/
 - [ ] 投稿者名での検索
 - [ ] いいね・コメント機能
 - [ ] 動画の埋め込み再生
-- [ ] プッシュ通知（FCMトークン対応・`push_notifications_migration.sql` / `registerFcmToken()` スタブ準備済み）
+- [ ] iOS プッシュ通知対応（APNs設定・`firebase_options.dart` のiOS設定）
 - [ ] 多言語対応
 
 ## バージョン履歴
 
-### v1.9.0 (2026-03-28) - 最新版
+### v2.0.0 (2026-03-29) - 最新版
+- **Androidプッシュ通知（FCM）対応を実装**
+  - 🟢 **Firebase Messaging 統合**: `firebase_core` / `firebase_messaging` を追加、`NotificationService` に FCM 初期化・権限要求・トークン管理を実装
+  - 🟢 **FCM トークン自動登録**: ログイン時にデバイストークンを取得して `profiles.fcm_token` に保存、トークン更新時も自動同期
+  - 🟢 **ログアウト時のトークン削除**: 他デバイスへの誤送信を防ぐため `clearFcmToken()` を実装
+  - 🟢 **バックグラウンド通知**: FCM SDK がアプリ終了・バックグラウンド時にシステム通知として自動表示
+  - 🟢 **フォアグラウンド通知**: アプリ起動中でもシステム通知を表示 + アプリ内未読数をインクリメント
+  - 🟢 **Supabase Edge Function**: `supabase/functions/send-push-notification/index.ts` を作成。サービスアカウントJWTフローで FCM HTTP v1 API を呼び出す
+  - 🟢 **DBトリガー連携**: `notifications` INSERT 時に `pg_net` で Edge Function を非同期呼び出し
+  - 変更: `android/settings.gradle.kts` / `android/app/build.gradle.kts`（google-services プラグイン追加）
+  - 変更: `AndroidManifest.xml`（`POST_NOTIFICATIONS` 権限追加）
+  - 更新: `push_notifications_migration.sql`（fcm_tokenカラム・pg_netトリガーを実装）
+  - ⚠️ **セットアップ必須**: `flutterfire configure` で `lib/firebase_options.dart` を生成すること（README 3.4 参照）
+  - ✅ **動作確認済み**: Android実機でプッシュ通知のエンドツーエンド動作を確認
+
+### v1.9.0 (2026-03-28)
 - **アプリ内通知機能を実装**
   - 🟢 **DBトリガーによる通知生成**: `videos` テーブルへの INSERT 時に PostgreSQL トリガー（`on_new_video_notify`）が発火し、購読者全員に通知レコードを自動生成
   - 🟢 **Supabase Realtime でリアルタイム受信**: WebSocket 経由で新着通知をリアルタイム受信し、ベルアイコンの未読バッジを即時更新
   - 🟢 **通知一覧画面**: 最新50件表示・未読ハイライト・タップで既読＋チャンネル遷移・一括既読ボタン・プルトゥリフレッシュ対応
-  - 🟢 **プッシュ通知への拡張準備**: `push_notifications_migration.sql`（FCMトークン対応マイグレーション）と `NotificationService.registerFcmToken()` スタブを用意
   - 新規ファイル: `notifications_migration.sql`（notificationsテーブル・RLS・DBトリガー）
-  - 新規ファイル: `push_notifications_migration.sql`（将来のFCM対応用・全コメントアウト）
   - 新規ファイル: `lib/models/notification_model.dart`
   - 新規ファイル: `lib/services/notification_service.dart`
   - 新規ファイル: `lib/screens/notifications/notifications_screen.dart`

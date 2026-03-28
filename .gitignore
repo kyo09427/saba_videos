@@ -46,3 +46,7 @@ app.*.map.json
 
 # Environment variables
 .env
+
+# Firebase - flutterfire configure で自動生成される（APIキーを含むため除外）
+lib/firebase_options.dart
+android/app/google-services.json

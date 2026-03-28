@@ -15,7 +15,7 @@ class DiscordAuthService {
   static String? _guildId;
 
   /// モバイルアプリ用のカスタムURLスキーム
-  static const String _mobileCallbackScheme = 'io.supabase.sabavideos';
+  static const String _mobileCallbackScheme = 'win.okasis.sabatube';
   static const String _mobileCallbackUrl = '$_mobileCallbackScheme://login-callback';
 
   DiscordAuthService._();
