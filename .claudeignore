@@ -12,8 +12,7 @@ android/build/
 android/app/debug/
 android/app/profile/
 android/app/release/
-ios/build/
-ios/Flutter/.last_build_id
+ios/
 
 # =============================
 # 依存パッケージ（Node.js等）
@@ -28,6 +27,7 @@ diff.txt
 diff_screens.txt
 diff_utf8.txt
 git_status.txt
+.git/
 
 # =============================
 # バイナリ・メディアファイル
