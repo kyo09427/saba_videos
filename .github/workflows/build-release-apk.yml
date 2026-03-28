@@ -49,6 +49,9 @@ jobs:
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $RUNNER_TEMP/release.keystore
           echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> $GITHUB_ENV
 
+      - name: firebase_options.dart の作成
+        run: echo "${{ secrets.FIREBASE_OPTIONS_DART_B64 }}" | base64 -d > lib/firebase_options.dart
+
       - name: 依存関係のインストール
         run: flutter pub get
 
