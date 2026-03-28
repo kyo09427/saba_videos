@@ -121,7 +121,7 @@ class AppBottomNavigationBar extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white24, width: 1),
-                color: _ytSurface.withOpacity(0.5),
+                color: _ytSurface.withValues(alpha: 0.5),
               ),
               child: const Icon(Icons.add, color: Colors.white, size: 28),
             ),

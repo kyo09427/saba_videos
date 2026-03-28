@@ -290,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return SliverToBoxAdapter(
       child: Container(
         height: 48,
-        color: _ytBackground.withOpacity(0.95),
+        color: _ytBackground.withValues(alpha: 0.95),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -343,115 +343,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// ショート動画セクション
-  Widget _buildShortsSection() {
-    final shortsData = [
-      {'title': 'すごいドラムソロ！🥁', 'views': '150万回視聴', 'color': Colors.blue},
-      {'title': '完璧な盛り付けのコツ 👨‍🍳', 'views': '89万回視聴', 'color': Colors.orange},
-      {'title': '子犬の朝のルーティン 🐶', 'views': '210万回視聴', 'color': Colors.green},
-    ];
 
-    return SliverToBoxAdapter(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 24, 12, 12),
-            child: Row(
-              children: [
-                Icon(Icons.bolt, color: _ytRed, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  'ショート',
-                  style: TextStyle(
-                    color: _textWhite,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 260,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: shortsData.length,
-              itemBuilder: (context, index) {
-                final item = shortsData[index];
-                return Container(
-                  width: 150,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: item['color'] as Color,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.8),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 12,
-                        left: 8,
-                        right: 8,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'] as String,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                shadows: [Shadow(blurRadius: 2, color: Colors.black)],
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              item['views'] as String,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                shadows: [Shadow(blurRadius: 2, color: Colors.black)],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Positioned(
-                        top: 4,
-                        right: 4,
-                        child: Icon(Icons.more_vert, color: Colors.white, size: 20),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(
-            height: 6,
-            margin: const EdgeInsets.only(top: 24),
-            color: _ytSurface.withOpacity(0.5),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// フィルターを適用
   void _applyFilter() {
@@ -553,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
+                      color: Colors.black.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -658,7 +550,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // ヘッダースケルトン
           SliverAppBar(
             floating: true,
-            backgroundColor: _ytBackground.withOpacity(0.95),
+            backgroundColor: _ytBackground.withValues(alpha: 0.95),
             elevation: 0,
             titleSpacing: 0,
             leadingWidth: 0,
@@ -693,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SliverToBoxAdapter(
             child: Container(
               height: 48,
-              color: _ytBackground.withOpacity(0.95),
+              color: _ytBackground.withValues(alpha: 0.95),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: List.generate(
@@ -783,7 +675,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         // ヘッダー
                         SliverAppBar(
                           floating: true,
-                          backgroundColor: _ytBackground.withOpacity(0.95),
+                          backgroundColor: _ytBackground.withValues(alpha: 0.95),
                           elevation: 0,
                           titleSpacing: 0,
                           leadingWidth: 0,
@@ -946,12 +838,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     constraints: const BoxConstraints(minHeight: 40, maxHeight: 40),
                     hintText: 'タイトル・カテゴリ・タグを検索',
-                    hintStyle: MaterialStateProperty.all(TextStyle(color: hintColor, fontSize: 15)),
-                    textStyle: MaterialStateProperty.all(TextStyle(color: textColor, fontSize: 15)),
-                    backgroundColor: MaterialStateProperty.all(bgColor),
-                    elevation: MaterialStateProperty.all(0),
-                    side: MaterialStateProperty.all(BorderSide(color: borderColor)),
-                    padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 16)),
+                    hintStyle: WidgetStateProperty.all(TextStyle(color: hintColor, fontSize: 15)),
+                    textStyle: WidgetStateProperty.all(TextStyle(color: textColor, fontSize: 15)),
+                    backgroundColor: WidgetStateProperty.all(bgColor),
+                    elevation: WidgetStateProperty.all(0),
+                    side: WidgetStateProperty.all(BorderSide(color: borderColor)),
+                    padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 16)),
                     leading: Icon(Icons.search, color: hintColor),
                     // ×ボタンの表示はコントローラーの文字数を直接監視してUIだけ更新(ListenableBuilder)
                     trailing: [
@@ -986,6 +878,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         controller.closeView(trimmed);
                       } else {
                         controller.text = trimmed;
+                        if (!context.mounted) return;
                         FocusScope.of(context).unfocus();
                       }
                       setState(() {

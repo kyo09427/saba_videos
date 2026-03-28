@@ -24,7 +24,7 @@ class _PostVideoScreenState extends State<PostVideoScreen> {
   bool _isFetchingInfo = false;
   String? _errorMessage;
   String? _previewThumbnail;
-  String? _videoId;
+
   String? _fetchedYoutubeTitle; // oEmbedで取得した元タイトル
   bool _durationAutoFetched = false; // 再生時間が自動取得済みか
 
@@ -99,7 +99,6 @@ class _PostVideoScreenState extends State<PostVideoScreen> {
   Future<void> _updatePreview(String url) async {
     final videoId = YouTubeService.extractVideoId(url);
     setState(() {
-      _videoId = videoId;
       _previewThumbnail = videoId != null
           ? YouTubeService.getThumbnailUrl(videoId)
           : null;

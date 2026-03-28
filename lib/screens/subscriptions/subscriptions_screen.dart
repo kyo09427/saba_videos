@@ -762,7 +762,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
         slivers: [
           SliverAppBar(
             floating: true,
-            backgroundColor: const Color(0xFF0F0F0F).withOpacity(0.95),
+            backgroundColor: const Color(0xFF0F0F0F).withValues(alpha: 0.95),
             elevation: 0,
             titleSpacing: 0,
             leadingWidth: 0,
