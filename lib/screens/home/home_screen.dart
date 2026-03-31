@@ -886,11 +886,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (trimmed.isNotEmpty) {
                         await SearchHistoryService.instance.addSearchQuery(trimmed);
                       }
+                      if (!mounted) return;
                       if (controller.isOpen) {
                         controller.closeView(trimmed);
                       } else {
                         controller.text = trimmed;
-                        if (!context.mounted) return;
                         FocusScope.of(context).unfocus();
                       }
                       setState(() {
