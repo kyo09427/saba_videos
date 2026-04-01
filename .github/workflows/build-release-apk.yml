@@ -43,6 +43,7 @@ jobs:
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
           echo "SHARED_PASSWORD=${{ secrets.SHARED_PASSWORD }}" >> .env
           echo "DISCORD_GUILD_ID=${{ secrets.DISCORD_GUILD_ID }}" >> .env
+          echo "GITHUB_LATEST_JSON_URL=https://github.com/${{ github.repository }}/releases/latest/download/latest.json" >> .env
 
       - name: Keystore ファイルのデコード
         run: |

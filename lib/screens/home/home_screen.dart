@@ -2,11 +2,13 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/video.dart';
+import '../../services/app_update_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/search_history_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/youtube_service.dart';
+import '../../widgets/update_dialog.dart';
 import '../notifications/notifications_screen.dart';
 import '../../utils/japanese_text_utils.dart';
 import '../../widgets/app_bottom_navigation_bar.dart';
@@ -59,6 +61,15 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadVideos();
     _setupRealtimeSubscription();
+    // アップデート確認（フレーム描画後に実行）
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  Future<void> _checkForUpdate() async {
+    final updateInfo = await AppUpdateService.instance.checkForUpdate();
+    if (updateInfo != null && mounted) {
+      await UpdateDialog.show(context, updateInfo);
+    }
   }
 
   @override
