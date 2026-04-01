@@ -152,6 +152,12 @@ async function sendPushNotification(
 
   if (!fcmResponse.ok) {
     const error = await fcmResponse.text();
+    // UNREGISTERED: アプリの再インストール等でトークンが無効化された状態。
+    // エラーではなく正常終了とし、次回アプリ起動時にトークンが更新される。
+    if (fcmResponse.status === 404 && error.includes("UNREGISTERED")) {
+      console.warn(`FCMトークンが無効 (UNREGISTERED)。アプリ再起動時に自動更新されます。`);
+      return;
+    }
     throw new Error(`FCM送信失敗 (${fcmResponse.status}): ${error}`);
   }
 }
