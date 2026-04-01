@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/video.dart';
@@ -414,32 +415,22 @@ class _HomeScreenState extends State<HomeScreen> {
               AspectRatio(
                 aspectRatio: 16 / 9,
                 child: video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty
-                    ? Image.network(
-                        video.thumbnailUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: video.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            color: _ytSurface,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: _ytRed,
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
-                              color: _ytSurface,
-                              child: Center(
-                                child: Icon(Icons.play_circle_outline,
-                                    color: _textGray, size: 48),
-                              ),
-                            ),
+                        placeholder: (context, url) => Container(
+                          color: _ytSurface,
+                          child: Center(
+                            child: CircularProgressIndicator(color: _ytRed),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: _ytSurface,
+                          child: Center(
+                            child: Icon(Icons.play_circle_outline,
+                                color: _textGray, size: 48),
+                          ),
+                        ),
                       )
                     : Container(
                         color: _ytSurface,
@@ -581,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 4),
                   const Text(
-                    'サバの動画',
+                    'SabaTube',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -649,25 +640,36 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// セル幅から childAspectRatio を動的計算する。
+  /// サムネイル(16:9) + 情報エリア固定高さ でセル高さを求め、比率を返す。
+  double _calcAspectRatio(double screenWidth, int columns) {
+    const hPad = 24.0;    // SliverPadding horizontal: 12×2
+    const spacing = 12.0; // crossAxisSpacing
+    const infoH = 114.0;  // 情報エリア固定高さ（padding+avatar+テキスト+バッジ）
+    final cellW = (screenWidth - hPad - (columns - 1) * spacing) / columns;
+    final thumbH = cellW * 9 / 16;
+    return cellW / (thumbH + infoH);
+  }
+
   @override
   Widget build(BuildContext context) {
     // 画面幅に応じた列数を計算
     final screenWidth = MediaQuery.of(context).size.width;
     int crossAxisCount;
     double childAspectRatio;
-    
+
     if (screenWidth < 600) {
       crossAxisCount = 1;
       childAspectRatio = 1.0; // 1列はSliverListを使うので参照されない
     } else if (screenWidth < 900) {
       crossAxisCount = 2;
-      childAspectRatio = 1.05; // タグなし・2列
+      childAspectRatio = _calcAspectRatio(screenWidth, 2);
     } else if (screenWidth < 1200) {
       crossAxisCount = 3;
-      childAspectRatio = 1.0; // タグなし・3列
+      childAspectRatio = _calcAspectRatio(screenWidth, 3);
     } else {
       crossAxisCount = 4;
-      childAspectRatio = 0.95; // タグなし・4列
+      childAspectRatio = _calcAspectRatio(screenWidth, 4);
     }
 
     return Scaffold(
@@ -736,9 +738,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (crossAxisCount == 1)
                             SliverList(
                               delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  return _buildVideoCard(_filteredVideos[index]);
-                                },
+                                (context, index) => RepaintBoundary(
+                                  child: _buildVideoCard(_filteredVideos[index]),
+                                ),
                                 childCount: _filteredVideos.length,
                               ),
                             )
@@ -756,9 +758,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   mainAxisSpacing: 12,
                                 ),
                                 delegate: SliverChildBuilderDelegate(
-                                  (context, index) {
-                                    return _buildVideoCard(_filteredVideos[index]);
-                                  },
+                                  (context, index) => RepaintBoundary(
+                                    child: _buildVideoCard(_filteredVideos[index]),
+                                  ),
                                   childCount: _filteredVideos.length,
                                 ),
                               ),
@@ -791,16 +793,10 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.only(left: 12),
           child: Row(
             children: [
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.play_circle_filled, color: _ytRed, size: 30),
-              ),
+              Image.asset('icon.png', height: 30),
               const SizedBox(width: 4),
               const Text(
-                'サバの動画',
+                'SabaTube',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -948,7 +944,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 4),
             const Text(
-              'サバの動画',
+              'SabaTube',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,

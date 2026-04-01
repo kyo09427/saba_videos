@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/video.dart';
 import '../../services/cache_service.dart';
@@ -32,6 +33,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
   String? _expandedYear;
   // 現在スクロールで見えているセクションキー
   String? _activeSectionKey;
+  // スクロールスロットル用（直前の更新時刻）
+  DateTime? _lastScrollUpdate;
 
   // デザイン用カラー
   final Color _ytBackground = const Color(0xFF0F0F0F);
@@ -58,18 +61,26 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   /// スクロール位置に応じてアクティブセクションを更新
+  /// 100ms スロットルでフレームごとの重い RenderBox 計算を抑制する。
   void _onScroll() {
-    // 現在見えているセクションを特定（簡易実装）
+    final now = DateTime.now();
+    if (_lastScrollUpdate != null &&
+        now.difference(_lastScrollUpdate!) < const Duration(milliseconds: 100)) {
+      return;
+    }
+    _lastScrollUpdate = now;
+
     for (final key in _sortedMonthKeys) {
       final globalKey = _sectionKeys[key];
-      final context = globalKey?.currentContext;
-      if (context == null) continue;
+      final ctx = globalKey?.currentContext;
+      if (ctx == null) continue;
 
-      final renderBox = context.findRenderObject() as RenderBox?;
+      final renderBox = ctx.findRenderObject() as RenderBox?;
       if (renderBox == null) continue;
 
       final position = renderBox.localToGlobal(Offset.zero);
-      if (position.dy >= 0 && position.dy < MediaQuery.of(context).size.height * 0.5) {
+      if (position.dy >= 0 &&
+          position.dy < MediaQuery.of(ctx).size.height * 0.5) {
         if (_activeSectionKey != key) {
           setState(() => _activeSectionKey = key);
         }
@@ -460,10 +471,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   aspectRatio: 16 / 9,
                   child: video.thumbnailUrl != null &&
                           video.thumbnailUrl!.isNotEmpty
-                      ? Image.network(
-                          video.thumbnailUrl!,
+                      ? CachedNetworkImage(
+                          imageUrl: video.thumbnailUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, e, stack) => Container(
+                          errorWidget: (context, url, e) => Container(
                             color: _ytSurface,
                             child: Icon(Icons.play_circle_outline,
                                 color: _textGray, size: 32),

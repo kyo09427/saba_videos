@@ -118,21 +118,20 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                 // アプリタイトル
-                const Icon(
-                  Icons.video_library,
-                  size: 80,
-                  color: Colors.blue,
-                ),
+                Image.asset('icon.png', height: 80),
                 const SizedBox(height: 16),
                 Text(
-                  'サバの動画',
+                  'SabaTube',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -322,7 +321,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                   child: const Text('新規登録はこちら'),
                 ),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),

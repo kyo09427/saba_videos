@@ -8,6 +8,61 @@ const Color _kSurface = Color(0xFF272727);
 const Color _kSurfaceLight = Color(0xFF3A3A3A);
 
 // ─────────────────────────────────────────────────────────────
+// 共有シマーアニメーション（InheritedWidget）
+// リスト内の全 SkeletonBox が1つの AnimationController を共有し
+// CPU・GPU 負荷を大幅に削減する。
+// ─────────────────────────────────────────────────────────────
+
+class _ShimmerScope extends InheritedWidget {
+  final Animation<double> animation;
+
+  const _ShimmerScope({required this.animation, required super.child});
+
+  static Animation<double>? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_ShimmerScope>()?.animation;
+
+  @override
+  bool updateShouldNotify(_ShimmerScope old) => false;
+}
+
+class _ShimmerProvider extends StatefulWidget {
+  final Widget child;
+
+  const _ShimmerProvider({required this.child});
+
+  @override
+  State<_ShimmerProvider> createState() => _ShimmerProviderState();
+}
+
+class _ShimmerProviderState extends State<_ShimmerProvider>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _ShimmerScope(animation: _animation, child: widget.child);
+}
+
+// ─────────────────────────────────────────────────────────────
 // SkeletonBase：シマーアニメーションの基底ウィジェット
 // ─────────────────────────────────────────────────────────────
 
@@ -15,7 +70,8 @@ const Color _kSurfaceLight = Color(0xFF3A3A3A);
 ///
 /// 指定した [width] × [height] の矩形または角丸矩形を
 /// グラデーションアニメーションで描画します。
-class SkeletonBox extends StatefulWidget {
+/// 祖先に [_ShimmerProvider] がある場合はそのアニメーションを共有します。
+class SkeletonBox extends StatelessWidget {
   final double? width;
   final double? height;
   final double borderRadius;
@@ -28,51 +84,32 @@ class SkeletonBox extends StatefulWidget {
   });
 
   @override
-  State<SkeletonBox> createState() => _SkeletonBoxState();
-}
-
-class _SkeletonBoxState extends State<SkeletonBox>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _animation = Tween<double>(
-      begin: -2,
-      end: 2,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final animation = _ShimmerScope.of(context);
+    if (animation == null) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          color: _kSurface,
+        ),
+      );
+    }
     return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, 0),
-              end: Alignment(_animation.value + 1, 0),
-              colors: const [_kSurface, _kSurfaceLight, _kSurface],
-            ),
+      animation: animation,
+      builder: (context, child) => Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          gradient: LinearGradient(
+            begin: Alignment(animation.value - 1, 0),
+            end: Alignment(animation.value + 1, 0),
+            colors: const [_kSurface, _kSurfaceLight, _kSurface],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -237,6 +274,7 @@ class SkeletonChannelHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 
 /// 複数のスケルトンカードをまとめて表示するウィジェット
+/// 単一の [_ShimmerProvider] で全アイテムのアニメーションを共有します。
 class SkeletonListView extends StatelessWidget {
   final Widget Function() itemBuilder;
   final int itemCount;
@@ -251,13 +289,12 @@ class SkeletonListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: backgroundColor ?? _kBackground,
-      child: ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        itemCount: itemCount,
-        itemBuilder: (_, _) => itemBuilder(),
+    return _ShimmerProvider(
+      child: Container(
+        color: backgroundColor ?? _kBackground,
+        child: Column(
+          children: List.generate(itemCount, (_) => itemBuilder()),
+        ),
       ),
     );
   }
@@ -268,6 +305,7 @@ class SkeletonListView extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 
 /// CustomScrollView内で使えるスケルトンSliverList
+/// [_ShimmerProvider] で全アイテムのアニメーションを共有します。
 class SkeletonSliverList extends StatelessWidget {
   final Widget Function() itemBuilder;
   final int itemCount;
@@ -280,10 +318,11 @@ class SkeletonSliverList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (_, _) => itemBuilder(),
-        childCount: itemCount,
+    return SliverToBoxAdapter(
+      child: _ShimmerProvider(
+        child: Column(
+          children: List.generate(itemCount, (_) => itemBuilder()),
+        ),
       ),
     );
   }
@@ -319,6 +358,7 @@ class SkeletonPlaylistCard extends StatelessWidget {
 }
 
 /// プレイリスト用スケルトン（2列グリッド）を Sliver で表示
+/// [_ShimmerProvider] で全アイテムのアニメーションを共有します。
 class SkeletonPlaylistSliverGrid extends StatelessWidget {
   final int itemCount;
 
@@ -326,18 +366,22 @@ class SkeletonPlaylistSliverGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.all(12),
-      sliver: SliverGrid(
-        delegate: SliverChildBuilderDelegate(
-          (_, _) => const SkeletonPlaylistCard(),
-          childCount: itemCount,
-        ),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.78,
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: _ShimmerProvider(
+          child: GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: itemCount,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.78,
+            ),
+            itemBuilder: (_, _) => const SkeletonPlaylistCard(),
+          ),
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_profile.dart';
 import '../../models/video.dart';
@@ -327,18 +328,26 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
   /// グリッドの列数を決定
   int _getGridColumnCount(double screenWidth, bool isWideScreen) {
     if (!isWideScreen) {
-      // スマホサイズ：1列
       return 1;
     }
-    
-    // PC表示：画面幅に応じて列数を調整
     if (screenWidth > 1600) {
-      return 4; // 超ワイド画面
+      return 4;
     } else if (screenWidth > 1200) {
-      return 3; // ワイド画面
+      return 3;
     } else {
-      return 2; // 中程度の画面
+      return 2;
     }
+  }
+
+  /// セル幅から childAspectRatio を動的計算する。
+  /// サムネイル(16:9) + 情報エリア固定高さ でセル高さを求め、比率を返す。
+  double _calcAspectRatio(double screenWidth, int columns) {
+    const hPad = 16.0;   // SliverPadding horizontal: 8×2
+    const spacing = 8.0; // crossAxisSpacing
+    const infoH = 120.0;  // 情報エリア固定高さ（padding+タイトル+チャンネル行）
+    final cellW = (screenWidth - hPad - (columns - 1) * spacing) / columns;
+    final thumbH = cellW * 9 / 16;
+    return cellW / (thumbH + infoH);
   }
 
   /// 動画カードをホーム画面と同じスタイルで構築
@@ -353,32 +362,22 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
               AspectRatio(
                 aspectRatio: 16 / 9,
                 child: video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty
-                    ? Image.network(
-                        video.thumbnailUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: video.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            color: _ytSurface,
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: _ytRed,
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
-                              color: _ytSurface,
-                              child: Center(
-                                child: Icon(Icons.play_circle_outline,
-                                    color: _textGray, size: 48),
-                              ),
-                            ),
+                        placeholder: (context, url) => Container(
+                          color: _ytSurface,
+                          child: Center(
+                            child: CircularProgressIndicator(color: _ytRed),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: _ytSurface,
+                          child: Center(
+                            child: Icon(Icons.play_circle_outline,
+                                color: _textGray, size: 48),
+                          ),
+                        ),
                       )
                     : Container(
                         color: _ytSurface,
@@ -735,7 +734,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                                   sliver: SliverGrid(
                                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: _getGridColumnCount(screenWidth, isWideScreen),
-                                      childAspectRatio: 1.05, // タグなし・複数列
+                                      childAspectRatio: _calcAspectRatio(screenWidth, _getGridColumnCount(screenWidth, isWideScreen)),
                                       crossAxisSpacing: 8,
                                       mainAxisSpacing: 8,
                                     ),
