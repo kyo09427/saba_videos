@@ -344,15 +344,14 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     }
   }
 
-  /// セル幅から childAspectRatio を動的計算する。
-  /// サムネイル(16:9) + 情報エリア固定高さ でセル高さを求め、比率を返す。
-  double _calcAspectRatio(double screenWidth, int columns) {
-    const hPad = 16.0;   // SliverPadding horizontal: 8×2
-    const spacing = 8.0; // crossAxisSpacing
-    const infoH = 120.0;  // 情報エリア固定高さ（padding+タイトル+チャンネル行）
+  /// セル幅からセルの高さ（px）を計算する。
+  /// サムネイル(16:9) + 情報エリア固定高さ の合計を返す。
+  double _calcCellHeight(double screenWidth, int columns) {
+    const hPad = 16.0;    // SliverPadding horizontal: 8×2
+    const spacing = 8.0;  // crossAxisSpacing
+    const infoH = 70.0;  // 情報エリア固定高さ（padding+タイトル2行+チャンネル行）
     final cellW = (screenWidth - hPad - (columns - 1) * spacing) / columns;
-    final thumbH = cellW * 9 / 16;
-    return cellW / (thumbH + infoH);
+    return cellW * 9 / 16 + infoH;
   }
 
   /// 動画カードをホーム画面と同じスタイルで構築
@@ -739,7 +738,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                                   sliver: SliverGrid(
                                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: _getGridColumnCount(screenWidth, isWideScreen),
-                                      childAspectRatio: _calcAspectRatio(screenWidth, _getGridColumnCount(screenWidth, isWideScreen)),
+                                      mainAxisExtent: _calcCellHeight(screenWidth, _getGridColumnCount(screenWidth, isWideScreen)),
                                       crossAxisSpacing: 8,
                                       mainAxisSpacing: 8,
                                     ),

@@ -3,14 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _kThemeModeKey = 'theme_mode';
 
-/// アプリのテーマ（ライト/ダーク）を管理するシングルトンサービス。
+/// アプリのテーマ（ライト/ダーク/システム）を管理するシングルトンサービス。
 ///
 /// SharedPreferences に永続化し、ValueNotifier で UI に通知する。
 class ThemeService {
   ThemeService._();
   static final ThemeService instance = ThemeService._();
 
-  final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.dark);
+  final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
 
   bool get isDark => themeMode.value == ThemeMode.dark;
 
@@ -20,8 +20,10 @@ class ThemeService {
     final saved = prefs.getString(_kThemeModeKey);
     if (saved == 'light') {
       themeMode.value = ThemeMode.light;
-    } else {
+    } else if (saved == 'dark') {
       themeMode.value = ThemeMode.dark;
+    } else {
+      themeMode.value = ThemeMode.system;
     }
   }
 
@@ -29,6 +31,15 @@ class ThemeService {
   Future<void> setThemeMode(ThemeMode mode) async {
     themeMode.value = mode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kThemeModeKey, mode == ThemeMode.light ? 'light' : 'dark');
+    final String value;
+    switch (mode) {
+      case ThemeMode.light:
+        value = 'light';
+      case ThemeMode.dark:
+        value = 'dark';
+      case ThemeMode.system:
+        value = 'system';
+    }
+    await prefs.setString(_kThemeModeKey, value);
   }
 }

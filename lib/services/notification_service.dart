@@ -4,6 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_model.dart';
 import 'supabase_service.dart';
 
+/// Web FCM 用の VAPID 公開鍵。
+/// Firebase Console > Project Settings > Cloud Messaging > Web configuration > 鍵ペア
+const _kWebVapidKey =
+    'BEexX4VY1EtJqthnxOe56_RAHTkiwzsQkvDnbnrpxKV0tReZcZYOEqf-STo2O6nXUtuSPEwqqBSC3UTDBCkbXU0';
+
 /// バックグラウンド/終了状態でのFCMメッセージハンドラ。
 /// トップレベル関数である必要がある。
 @pragma('vm:entry-point')
@@ -21,7 +26,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 ///   - 未読数の管理（[unreadCount] ValueNotifier）
 ///   - Supabase Realtime による新着通知のリアルタイム受信
 ///   - 既読処理
-///   - FCM トークンの取得・Supabase への保存
+///   - FCM トークンの取得・Supabase への保存（Android: fcm_token / Web: web_fcm_token）
 ///   - フォアグラウンド時の FCM メッセージ受信
 class NotificationService {
   NotificationService._();
@@ -69,17 +74,17 @@ class NotificationService {
   // ------------------------------------------------------------------
 
   /// FCMの権限要求・トークン取得・フォアグラウンド受信設定を行う。
+  /// Android: fcm_token カラム / Web: web_fcm_token カラムにトークンを保存する。
   Future<void> _initFcm() async {
-    // Web は Android 対応完了後に別途実装予定のためスキップ
-    if (kIsWeb) return;
-    // 多重登録防止
     if (_isFcmInitialized) return;
     _isFcmInitialized = true;
 
-    // バックグラウンドハンドラを登録（アプリ起動前に設定する必要がある）
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // バックグラウンドハンドラはネイティブのみ（WebはService Workerが処理）
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
 
-    // 通知権限を要求（Android 13+ / iOS）
+    // 通知権限を要求（Android 13+ はOS権限ダイアログ / Webはブラウザ権限ダイアログ）
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
@@ -93,20 +98,32 @@ class NotificationService {
     }
 
     // FCMトークンを取得してSupabaseに保存
-    final token = await FirebaseMessaging.instance.getToken();
-    if (token != null) {
-      await registerFcmToken(token);
+    // Web は VAPID 鍵が必須
+    try {
+      final token = await FirebaseMessaging.instance.getToken(
+        vapidKey: kIsWeb ? _kWebVapidKey : null,
+      );
+      if (token != null) {
+        await registerFcmToken(token);
+      } else {
+        debugPrint('⚠️ FCMトークンがnullです（Service Workerの登録状態を確認してください）');
+      }
+    } catch (e) {
+      debugPrint('❌ FCMトークン取得失敗: $e');
+      return;
     }
 
     // トークンが更新された場合も保存
     FirebaseMessaging.instance.onTokenRefresh.listen(registerFcmToken);
 
-    // フォアグラウンド時の通知表示を有効化
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // フォアグラウンド時の通知表示を有効化（iOS/Androidのみ）
+    if (!kIsWeb) {
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
 
     // フォアグラウンド時のメッセージ受信 → アプリ内の未読数をインクリメント
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -119,6 +136,8 @@ class NotificationService {
       debugPrint('📲 通知タップでアプリ起動: ${message.notification?.title}');
       // 必要に応じて特定画面への遷移ロジックをここに追加
     });
+
+    debugPrint('✅ FCM初期化完了 (${kIsWeb ? "Web" : "Android"})');
   }
 
   // ------------------------------------------------------------------
@@ -240,32 +259,56 @@ class NotificationService {
   // FCM トークン管理
   // ------------------------------------------------------------------
 
+  /// FCMトークンを再取得してSupabaseに保存する。
+  /// マイページのトグルON時に呼び出す。
+  Future<void> refreshFcmToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken(
+        vapidKey: kIsWeb ? _kWebVapidKey : null,
+      );
+      if (token != null) {
+        await registerFcmToken(token);
+      } else {
+        debugPrint('⚠️ FCMトークン再取得: nullが返されました');
+      }
+    } catch (e) {
+      debugPrint('❌ FCMトークン再取得失敗: $e');
+    }
+  }
+
   /// FCM デバイストークンを profiles テーブルに保存する。
+  /// Android → fcm_token カラム / Web → web_fcm_token カラム
   Future<void> registerFcmToken(String token) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return;
 
+      // 自プラットフォームのトークンを保存し、他プラットフォームのトークンはクリア
+      // （同一アカウントで複数プラットフォーム使用時に重複通知を防ぐ）
       await _client
           .from('profiles')
-          .update({'fcm_token': token})
+          .update(kIsWeb
+              ? {'web_fcm_token': token, 'fcm_token': null}
+              : {'fcm_token': token, 'web_fcm_token': null})
           .eq('id', userId);
 
-      debugPrint('✅ FCMトークンを登録しました');
+      debugPrint('✅ FCMトークンを登録しました (${kIsWeb ? "Web" : "Android"})');
     } catch (e) {
       debugPrint('❌ NotificationService.registerFcmToken: $e');
     }
   }
 
   /// ログアウト時にFCMトークンを削除する（他のデバイスへの誤送信を防ぐ）。
+  /// Android → fcm_token カラム / Web → web_fcm_token カラム
   Future<void> clearFcmToken() async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return;
 
+      final column = kIsWeb ? 'web_fcm_token' : 'fcm_token';
       await _client
           .from('profiles')
-          .update({'fcm_token': null})
+          .update({column: null})
           .eq('id', userId);
     } catch (e) {
       debugPrint('❌ NotificationService.clearFcmToken: $e');

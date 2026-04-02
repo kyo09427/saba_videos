@@ -75,9 +75,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
       final settings = await FirebaseMessaging.instance.requestPermission();
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
-        final token = await FirebaseMessaging.instance.getToken();
-        if (token != null) {
-          await NotificationService.instance.registerFcmToken(token);
+        await NotificationService.instance.refreshFcmToken();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.notifications_active, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('通知をオンにしました'),
+                ],
+              ),
+              duration: Duration(seconds: 2),
+            ),
+          );
         }
       } else {
         // OS権限が拒否されている場合はトグルを戻す
@@ -96,6 +107,20 @@ class _MyPageScreenState extends State<MyPageScreen> {
     } else {
       // 通知を無効化: FCMトークンをSupabaseから削除
       await NotificationService.instance.clearFcmToken();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.notifications_off, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('通知をオフにしました'),
+              ],
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -419,6 +444,98 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
+  String _themeModeLabel(ThemeMode m) {
+    switch (m) {
+      case ThemeMode.light:
+        return 'ライトモード';
+      case ThemeMode.dark:
+        return 'ダークモード';
+      case ThemeMode.system:
+        return 'システムのテーマに合わせる';
+    }
+  }
+
+  IconData _themeModeIcon(ThemeMode m) {
+    switch (m) {
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+    }
+  }
+
+  Widget _buildThemeSelector(ThemeMode mode) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.purple.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          _themeModeIcon(mode),
+          color: Colors.purple,
+          size: 24,
+        ),
+      ),
+      title: const Text('テーマ'),
+      subtitle: Text(_themeModeLabel(mode)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        showDialog<ThemeMode>(
+          context: context,
+          builder: (ctx) {
+            ThemeMode selected = mode;
+            return StatefulBuilder(
+              builder: (ctx, setLocalState) => AlertDialog(
+                title: const Text('テーマを選択'),
+                content: RadioGroup<ThemeMode>(
+                  groupValue: selected,
+                  onChanged: (v) => setLocalState(() => selected = v!),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RadioListTile<ThemeMode>(
+                        title: const Text('ライトモード'),
+                        secondary: const Icon(Icons.light_mode),
+                        value: ThemeMode.light,
+                      ),
+                      RadioListTile<ThemeMode>(
+                        title: const Text('ダークモード'),
+                        secondary: const Icon(Icons.dark_mode),
+                        value: ThemeMode.dark,
+                      ),
+                      RadioListTile<ThemeMode>(
+                        title: const Text('システムのテーマに合わせる'),
+                        secondary: const Icon(Icons.brightness_auto),
+                        value: ThemeMode.system,
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('キャンセル'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      ThemeService.instance.setThemeMode(selected);
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('適用'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -608,17 +725,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         const Divider(height: 1),
                         ValueListenableBuilder<ThemeMode>(
                           valueListenable: ThemeService.instance.themeMode,
-                          builder: (_, mode, __) => _buildSwitchTile(
-                            icon: mode == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
-                            title: mode == ThemeMode.dark ? 'ダークモード' : 'ライトモード',
-                            value: mode == ThemeMode.dark,
-                            onChanged: (value) {
-                              ThemeService.instance.setThemeMode(
-                                value ? ThemeMode.dark : ThemeMode.light,
-                              );
-                            },
-                            iconColor: Colors.purple,
-                          ),
+                          builder: (_, mode, _) => _buildThemeSelector(mode),
                         ),
                       ],
                     ),

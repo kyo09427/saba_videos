@@ -109,7 +109,7 @@ Supabaseダッシュボードの「SQL Editor」で以下のSQLファイルを**
    - **Users can update their own avatar**: UPDATE (同上)
    - **Users can delete their own avatar**: DELETE (同上)
 
-#### 3.4 プッシュ通知のセットアップ（Android）
+#### 3.4 プッシュ通知のセットアップ（Android / Web）
 
 > アプリ内通知だけ使う場合はこのセクションはスキップできます。
 
@@ -175,6 +175,24 @@ supabase login
 supabase link --project-ref xxxxxxxxxxxx
 supabase functions deploy send-push-notification
 ```
+
+**⑧ Web プッシュ通知の追加設定**
+
+> Web 版でもプッシュ通知を使う場合のみ実施。
+
+1. Firebase Console > プロジェクトの設定 > Cloud Messaging > **Web Push certificates**
+2. 「鍵ペアを生成」をクリックして VAPID 公開鍵を取得
+3. `lib/services/notification_service.dart` の `_kWebVapidKey` に貼り付け
+
+```dart
+// lib/services/notification_service.dart
+const _kWebVapidKey = 'ここにVAPID公開鍵を貼り付け';
+```
+
+4. Supabase SQL Editor で `supabase/migrations/add_web_fcm_token.sql` を実行
+   - `profiles.web_fcm_token` カラムを追加
+   - Web 用トリガー `on_new_notification_web` を作成
+5. `push_notify_web_on_new_notification()` 関数内の `service_key` と URL を自プロジェクトの値に変更
 
 #### 3.5 メール認証の設定
 1. Supabaseダッシュボード > Authentication > Settings
@@ -264,6 +282,19 @@ flutter run --release
 ## プロジェクト構成
 
 ```
+web/
+├── index.html                              # Webエントリーポイント
+├── firebase-messaging-sw.js               # Service Worker（Webバックグラウンド通知）
+├── manifest.json                          # PWAマニフェスト
+└── icons/                                 # アイコン画像
+
+supabase/
+├── functions/
+│   └── send-push-notification/
+│       └── index.ts                       # FCM HTTP v1 API 呼び出し（Android・Web対応）
+└── migrations/
+    └── add_web_fcm_token.sql              # web_fcm_tokenカラム追加・Webトリガー作成
+
 lib/
 ├── main.dart                               # エントリーポイント
 ├── models/                                 # データモデル
@@ -333,6 +364,8 @@ lib/
 | avatar_url | TEXT | アバター画像URL |
 | bio | TEXT | 自己紹介文 |
 | created_at | TIMESTAMPTZ | 登録日時 |
+| fcm_token | TEXT | Android プッシュ通知用 FCM トークン（ログイン時に自動登録・ログアウト時にクリア） |
+| web_fcm_token | TEXT | Web プッシュ通知用 FCM トークン（`add_web_fcm_token.sql` で追加） |
 
 ### tags テーブル / video_tags テーブル
 
@@ -538,12 +571,33 @@ lib/
 - [ ] 投稿者名での検索
 - [ ] いいね・コメント機能
 - [ ] 動画の埋め込み再生
-- [ ] iOS プッシュ通知対応（APNs設定・`firebase_options.dart` のiOS設定）
+- [ ] iOS プッシュ通知対応（APNs設定・`firebase_options.dart` の iOS 設定）
+- [ ] 複数デバイス同時ログイン対応（`fcm_tokens` テーブルへの移行）
 - [ ] 多言語対応
 
 ## バージョン履歴
 
-### v2.1.0 (2026-04-01) - 最新版
+### v2.2.0 (2026-04-02) - 最新版
+
+- **Web プッシュ通知対応**
+  - 🟢 **Web FCM 実装**: `NotificationService._initFcm()` の Web スキップを解除。VAPID キー（`_kWebVapidKey`）を使用して `FirebaseMessaging.instance.getToken()` でWebトークンを取得
+  - 🟢 **プラットフォーム別トークン保存**: Android → `profiles.fcm_token` / Web → `profiles.web_fcm_token` にそれぞれ保存。ログイン時に他プラットフォームのトークンをクリアして重複通知を防止
+  - 🟢 **Service Worker**: `web/firebase-messaging-sw.js` を追加。バックグラウンド・タブ非アクティブ時の通知を Service Worker が受信・表示
+  - 🟢 **DBトリガー**: `push_notify_web_on_new_notification()` トリガー関数を新設。`notifications` テーブルへの INSERT 時に `web_fcm_token` 宛に Edge Function を呼び出す
+  - 🟢 **Edge Function 更新**: `platform: 'web'` 時に FCM メッセージへ `webpush` フィールド（アイコン・クリックURL）を追加
+  - 新規ファイル: `web/firebase-messaging-sw.js`（Service Worker）
+  - 新規ファイル: `supabase/migrations/add_web_fcm_token.sql`（`web_fcm_token` カラム追加）
+  - ✅ **動作確認済み**: Chrome（Web）でバックグラウンドプッシュ通知のエンドツーエンド動作を確認
+- **マイページ テーマ設定改善**
+  - 🟢 **3択セレクターに変更**: トグルスイッチから「ライトモード / ダークモード / システムのテーマに合わせる」の選択式に変更（`lib/screens/profile/my_page_screen.dart`）
+  - 🟢 **初期値変更**: デフォルトを `ThemeMode.dark` → `ThemeMode.system`（端末設定に追従）に変更
+  - 🟢 **デバイスごとに設定を保存**: `SharedPreferences` に `'system'` / `'light'` / `'dark'` を保存（`lib/services/theme_service.dart`）
+- **通知トグル UX 改善**
+  - 🟢 **SnackBar フィードバック追加**: 通知オン→「通知をオンにしました」/ オフ→「通知をオフにしました」をアイコン付きで2秒表示（`lib/screens/profile/my_page_screen.dart`）
+- **登録チャンネル画面バグ修正**
+  - 🔴 **グリッドオーバーフロー修正**: `childAspectRatio`（比率計算）を廃止し `mainAxisExtent`（ピクセル直接指定）に変更。サムネイル下部の余白過多と RenderFlex オーバーフロー警告を解消（`lib/screens/subscriptions/subscriptions_screen.dart`）
+
+### v2.1.0 (2026-04-01)
 - **Web版パフォーマンス改善**
   - 🟢 **スケルトンアニメーション共有化**: `SkeletonBox` が個別に持っていた `AnimationController` を廃止し、`_ShimmerProvider`（InheritedWidget）による1つの共有コントローラに統一。リスト表示時のCPU・GPU負荷を大幅削減
   - 🟢 **タイムライン画面スクロールスロットル化**: `_onScroll` ハンドラが毎フレーム `findRenderObject()` を呼び出していた問題を修正。100ms スロットルを導入しメインスレッドの負荷を軽減

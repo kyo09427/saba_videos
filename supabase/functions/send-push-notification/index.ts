@@ -23,6 +23,7 @@ interface PushPayload {
   title: string;
   body: string;
   data?: Record<string, unknown>;
+  platform?: 'android' | 'web'; // 省略時は android 扱い
 }
 
 // ------------------------------------------------------------------
@@ -121,6 +122,42 @@ async function sendPushNotification(
       )
     : undefined;
 
+  const isWeb = payload.platform === 'web';
+
+  const message: Record<string, unknown> = {
+    token: payload.token,
+    notification: {
+      title: payload.title,
+      body: payload.body,
+    },
+    data: stringData,
+  };
+
+  if (isWeb) {
+    // Web プッシュ通知の設定
+    message.webpush = {
+      headers: { Urgency: "high" },
+      notification: {
+        icon: "/icons/Icon-192.png",
+        badge: "/icons/Icon-192.png",
+        // 通知クリック時にアプリを前面に出す
+        click_action: "/",
+      },
+      fcm_options: {
+        link: "/",
+      },
+    };
+  } else {
+    // Android プッシュ通知の設定
+    message.android = {
+      priority: "high",
+      notification: {
+        sound: "default",
+        click_action: "FLUTTER_NOTIFICATION_CLICK",
+      },
+    };
+  }
+
   const fcmResponse = await fetch(
     `https://fcm.googleapis.com/v1/projects/${serviceAccount.project_id}/messages:send`,
     {
@@ -129,24 +166,7 @@ async function sendPushNotification(
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        message: {
-          token: payload.token,
-          notification: {
-            title: payload.title,
-            body: payload.body,
-          },
-          data: stringData,
-          android: {
-            priority: "high",
-            notification: {
-              sound: "default",
-              // Flutter側でタップ時のルーティングに使用
-              click_action: "FLUTTER_NOTIFICATION_CLICK",
-            },
-          },
-        },
-      }),
+      body: JSON.stringify({ message }),
     }
   );
 
