@@ -24,6 +24,7 @@ class CacheKeys {
   static const String myVideos = 'my_videos';
   static const String myPageProfile = 'my_page_profile';
   static const String myPageVideoCount = 'my_page_video_count';
+  static const String myPageTotalViews = 'my_page_total_views';
 
   /// チャンネルデータキー（channelId を含む）
   static String channelData(String channelId) => 'channel_data_$channelId';

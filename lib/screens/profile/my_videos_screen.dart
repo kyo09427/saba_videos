@@ -212,6 +212,7 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
       // キャッシュを無効化
       CacheService.instance.invalidate(CacheKeys.myVideos);
       CacheService.instance.invalidate(CacheKeys.homeVideos);
+      CacheService.instance.invalidate(CacheKeys.myPageTotalViews);
 
       _showSnackBar('動画を削除しました');
       await _loadMyVideos(isRefresh: true);

@@ -153,15 +153,16 @@ class _MyPageScreenState extends State<MyPageScreen> {
           CacheService.instance.get<UserProfile>(CacheKeys.myPageProfile);
       final cachedCount =
           CacheService.instance.get<int>(CacheKeys.myPageVideoCount);
-      if (cachedProfile != null && cachedCount != null) {
+      final cachedViews =
+          CacheService.instance.get<int>(CacheKeys.myPageTotalViews);
+      if (cachedProfile != null && cachedCount != null && cachedViews != null) {
         if (mounted) {
           setState(() {
             _userEmail = user.email;
             _createdAt = DateTime.parse(user.createdAt);
             _userProfile = cachedProfile;
             _totalVideos = cachedCount;
-            _totalViews = cachedCount * 120;
-            _totalLikes = cachedCount * 15;
+            _totalViews = cachedViews;
             _isLoading = false;
           });
         }
@@ -177,12 +178,34 @@ class _MyPageScreenState extends State<MyPageScreen> {
       // プロフィール情報を取得
       final profile = await _profileService.getProfile(user.id);
 
-      // 投稿数を取得
-      final videoCount = await _supabase
+      // 自分の動画のURL一覧と投稿数を取得
+      final videosResponse = await _supabase
           .from('videos')
-          .select()
-          .eq('user_id', user.id)
-          .count();
+          .select('url')
+          .eq('user_id', user.id);
+
+      final videoUrls = (videosResponse as List)
+          .map((v) => v['url'] as String? ?? '')
+          .where((url) => url.isNotEmpty)
+          .toList();
+
+      final videoCount = videoUrls.length;
+
+      // Edge Function 経由で合計再生回数を取得（APIキーはサーバーサイドのみ）
+      int totalViews = 0;
+      if (videoUrls.isNotEmpty) {
+        try {
+          final res = await _supabase.functions.invoke(
+            'youtube-views',
+            body: {'videoUrls': videoUrls},
+          );
+          if (res.data != null && res.data['totalViews'] is num) {
+            totalViews = (res.data['totalViews'] as num).toInt();
+          }
+        } catch (e) {
+          debugPrint('⚠️ Failed to fetch view counts: $e');
+        }
+      }
 
       // キャッシュに保存
       if (profile != null) {
@@ -193,24 +216,42 @@ class _MyPageScreenState extends State<MyPageScreen> {
       }
       CacheService.instance.set<int>(
         CacheKeys.myPageVideoCount,
-        videoCount.count,
+        videoCount,
+      );
+      // 再生回数は翌日の日本時間 0:00 まで有効
+      CacheService.instance.set<int>(
+        CacheKeys.myPageTotalViews,
+        totalViews,
+        ttl: _ttlUntilJstMidnight(),
       );
 
-      setState(() {
-        _userEmail = user.email;
-        _createdAt = DateTime.parse(user.createdAt);
-        _userProfile = profile;
-        _totalVideos = videoCount.count;
-        // ダミーデータ
-        _totalViews = _totalVideos * 120;
-        _totalLikes = _totalVideos * 15;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userEmail = user.email;
+          _createdAt = DateTime.parse(user.createdAt);
+          _userProfile = profile;
+          _totalVideos = videoCount;
+          _totalViews = totalViews;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  /// 翌日の日本時間 0:00 までの残り時間を返す
+  Duration _ttlUntilJstMidnight() {
+    const jstOffset = Duration(hours: 9);
+    final nowUtc = DateTime.now().toUtc();
+    final nowJst = nowUtc.add(jstOffset);
+    final tomorrowJst = DateTime(nowJst.year, nowJst.month, nowJst.day + 1);
+    final tomorrowUtc = tomorrowJst.subtract(jstOffset);
+    return tomorrowUtc.difference(nowUtc);
   }
 
   Future<void> _handleLogout() async {

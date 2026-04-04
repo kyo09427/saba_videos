@@ -821,6 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await _supabase.from('videos').delete().eq('id', video.id);
       CacheService.instance.invalidate(CacheKeys.homeVideos);
       CacheService.instance.invalidate(CacheKeys.myVideos);
+      CacheService.instance.invalidate(CacheKeys.myPageTotalViews);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('動画を削除しました'), backgroundColor: Colors.green,
