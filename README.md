@@ -580,7 +580,17 @@ lib/
 
 ## バージョン履歴
 
-### v2.4.0 (2026-04-04) - 最新版
+### v2.5.0 (2026-04-04) - 最新版
+
+- **Flutter web スクロールパフォーマンス改善**
+  - 🟢 **Timeline RenderBox計算を事前キャッシュ化**: スクロールイベントごとに全セクション分の `RenderBox.localToGlobal()` を同期実行していた処理を廃止。コンテンツ読み込み完了後に `addPostFrameCallback` で1回だけ絶対スクロール位置を計算・保存し、スクロール中は単純な算術比較のみで処理（`timeline_screen.dart`）
+  - 🟢 **スクロールリスナーに debounce を追加**: ホーム・登録チャンネル画面のスクロールリスナーに 50ms の `Timer` ベース debounce を追加。固定 400px 閾値を `maxScrollExtent * 0.85` の相対値に変更（`home_screen.dart`, `subscriptions_screen.dart`）
+  - 🟢 **Web向け ClampingScrollPhysics を適用**: `kIsWeb` 判定で `CustomScrollView` に `ClampingScrollPhysics` を設定。ブラウザのネイティブスクロールに近い挙動になりオーバースクロールの計算コストを削減（ホーム・登録チャンネル・タイムライン画面）
+  - 🟢 **VideoCard に RepaintBoundary を追加**: `VideoCard` ウィジェットを `RepaintBoundary` でラップし、スクロール中の隣接カードへの不要な再描画を抑制（`video_card.dart`）
+  - 🔴 **`Image.network` を `CachedNetworkImage` に置き換え**: チャンネル・プレイリスト詳細・マイ動画画面でキャッシュなしの `Image.network` を使用していた箇所を `CachedNetworkImage` に統一。スクロール中の再ネットワーク要求を排除（`channel_screen.dart`, `playlist_detail_screen.dart`, `my_videos_screen.dart`）
+- **新規ルート**: なし（パフォーマンス改善のみ）
+
+### v2.4.0 (2026-04-04)
 
 - **登録チャンネル画面 レスポンシブ対応強化**
   - 🟢 **スマホ版チャンネルアイコン横スクロール追加**: 画面上部に登録チャンネルのアイコンを横スワイプで選択できるリストを追加。選択中は赤枠＋赤テキストでハイライト（`subscriptions_screen.dart`）
