@@ -9,6 +9,7 @@ import '../../services/notification_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/theme_service.dart';
+import '../../widgets/app_mobile_top_bar.dart';
 import '../../widgets/app_navigation_scaffold.dart';
 import '../../widgets/update_dialog.dart';
 import '../auth/login_screen.dart';
@@ -539,10 +540,18 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   Widget _buildWideLayout(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return SingleChildScrollView(
+    return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      child: Center(
-        child: ConstrainedBox(
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          automaticallyImplyLeading: false,
+          title: const SizedBox.shrink(),
+          actions: AppMobileTopBar.buildActions(context),
+        ),
+        SliverToBoxAdapter(
+          child: Center(
+            child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1152),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
@@ -610,6 +619,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
           ),
         ),
       ),
+        ),
+      ],
     );
   }
 
@@ -1093,9 +1104,17 @@ class _MyPageScreenState extends State<MyPageScreen> {
   // ─── モバイル用ナローレイアウト ────────────────────────────────────────
 
   Widget _buildNarrowLayout(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          automaticallyImplyLeading: false,
+          title: AppMobileTopBar.buildTitle(context),
+          actions: AppMobileTopBar.buildActions(context),
+        ),
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
           // プロフィールヘッダー
           Container(
             width: double.infinity,
@@ -1477,6 +1496,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
           const SizedBox(height: 32),
         ],
       ),
+        ),
+      ],
     );
   }
 
