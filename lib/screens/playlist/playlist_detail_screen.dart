@@ -24,13 +24,6 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // デザイン用カラー定義（チャンネル画面と統一）
-  final Color _ytBackground = const Color(0xFF0F0F0F);
-  final Color _ytSurface = const Color(0xFF272727);
-  final Color _ytRed = const Color(0xFFF20D0D);
-  final Color _textWhite = Colors.white;
-  final Color _textGray = const Color(0xFFAAAAAA);
-
   String get _cacheKey => 'playlist_videos_${widget.playlist.id}';
 
   @override
@@ -112,6 +105,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   }
 
   Widget _buildVideoCard(Video video) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => _handleVideoTap(video),
       child: Padding(
@@ -134,22 +128,22 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         placeholder: (context, url) => Container(
                           width: 160,
                           height: 90,
-                          color: _ytSurface,
+                          color: colorScheme.surfaceContainerHighest,
                         ),
                         errorWidget: (context, url, error) => Container(
                           width: 160,
                           height: 90,
-                          color: _ytSurface,
+                          color: colorScheme.surfaceContainerHighest,
                           child: Icon(Icons.play_circle_outline,
-                              color: _textGray, size: 36),
+                              color: colorScheme.onSurfaceVariant, size: 36),
                         ),
                       )
                     : Container(
                         width: 160,
                         height: 90,
-                        color: _ytSurface,
+                        color: colorScheme.surfaceContainerHighest,
                         child: Icon(Icons.video_library_outlined,
-                            color: _textGray, size: 36),
+                            color: colorScheme.onSurfaceVariant, size: 36),
                       ),
               ),
             ),
@@ -164,7 +158,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _textWhite,
+                      color: colorScheme.onSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.normal,
                       height: 1.2,
@@ -174,12 +168,14 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   if (video.userProfile != null)
                     Text(
                       video.userProfile!.username,
-                      style: TextStyle(color: _textGray, fontSize: 12),
+                      style: TextStyle(
+                          color: colorScheme.onSurfaceVariant, fontSize: 12),
                     ),
                   const SizedBox(height: 2),
                   Text(
                     video.relativeTime,
-                    style: TextStyle(color: _textGray, fontSize: 12),
+                    style: TextStyle(
+                        color: colorScheme.onSurfaceVariant, fontSize: 12),
                   ),
                 ],
               ),
@@ -191,15 +187,16 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   }
 
   Widget _buildSkeletonView() {
+    final colorScheme = Theme.of(context).colorScheme;
     return CustomScrollView(
       physics: const NeverScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
           floating: true,
-          backgroundColor: _ytBackground,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: _textWhite),
+            icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
@@ -213,8 +210,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: _ytBackground,
       body: SafeArea(
         child: _isLoading
             ? _buildSkeletonView()
@@ -223,11 +220,12 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, color: _ytRed, size: 48),
+                        Icon(Icons.error_outline,
+                            color: colorScheme.error, size: 48),
                         const SizedBox(height: 16),
                         Text(
                           _errorMessage!,
-                          style: TextStyle(color: _textWhite),
+                          style: TextStyle(color: colorScheme.onSurface),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
@@ -239,18 +237,18 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   )
                 : RefreshIndicator(
                     onRefresh: () => _loadVideos(isRefresh: true),
-                    color: _ytRed,
-                    backgroundColor: _ytSurface,
+                    color: colorScheme.primary,
                     child: CustomScrollView(
                       slivers: [
                         // ヘッダー
                         SliverAppBar(
                           floating: true,
-                          backgroundColor: _ytBackground,
+                          backgroundColor:
+                              Theme.of(context).scaffoldBackgroundColor,
                           elevation: 0,
                           leading: IconButton(
-                            icon:
-                                Icon(Icons.arrow_back, color: _textWhite),
+                            icon: Icon(Icons.arrow_back,
+                                color: colorScheme.onSurface),
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                           title: Column(
@@ -259,7 +257,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                               Text(
                                 widget.playlist.name,
                                 style: TextStyle(
-                                  color: _textWhite,
+                                  color: colorScheme.onSurface,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -267,7 +265,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                               Text(
                                 widget.playlist.videoCountLabel,
                                 style: TextStyle(
-                                    color: _textGray, fontSize: 12),
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontSize: 12),
                               ),
                             ],
                           ),
@@ -278,15 +277,15 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                           SliverFillRemaining(
                             child: Center(
                               child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.playlist_play_outlined,
-                                      size: 80, color: _ytSurface),
+                                      size: 80,
+                                      color: colorScheme.surfaceContainerHighest),
                                   const SizedBox(height: 16),
                                   Text('動画がありません',
-                                      style:
-                                          TextStyle(color: _textGray)),
+                                      style: TextStyle(
+                                          color: colorScheme.onSurfaceVariant)),
                                 ],
                               ),
                             ),

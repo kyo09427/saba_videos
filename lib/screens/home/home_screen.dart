@@ -762,18 +762,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _ytSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => EditVideoSheet(
-        video: video,
-        ytBackground: _ytBackground,
-        ytSurface: _ytSurface,
-        ytRed: _ytRed,
-        textWhite: _textWhite,
-        textGray: _textGray,
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => EditVideoSheet(video: video),
     );
 
     if (result == true && mounted) {

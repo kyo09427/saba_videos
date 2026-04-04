@@ -141,18 +141,8 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _ytSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => EditVideoSheet(
-        video: video,
-        ytBackground: _ytBackground,
-        ytSurface: _ytSurface,
-        ytRed: _ytRed,
-        textWhite: _textWhite,
-        textGray: _textGray,
-      ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => EditVideoSheet(video: video),
     );
 
     if (result == true) {
@@ -536,19 +526,9 @@ class _MyVideosScreenState extends State<MyVideosScreen> {
 /// 動画編集用のボトムシート
 class EditVideoSheet extends StatefulWidget {
   final Video video;
-  final Color ytBackground;
-  final Color ytSurface;
-  final Color ytRed;
-  final Color textWhite;
-  final Color textGray;
 
   const EditVideoSheet({
     required this.video,
-    required this.ytBackground,
-    required this.ytSurface,
-    required this.ytRed,
-    required this.textWhite,
-    required this.textGray,
   });
 
   @override
@@ -609,37 +589,39 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
     final nameController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF272727),
-        title: const Text('新しいプレイリスト', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          maxLength: 50,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'プレイリスト名',
-            labelStyle: TextStyle(color: Colors.white70),
-            border: OutlineInputBorder(),
-          ),
-          onSubmitted: (v) {
-            if (v.trim().isNotEmpty) Navigator.of(ctx).pop(v.trim());
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('キャンセル', style: TextStyle(color: Colors.white54)),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isNotEmpty) Navigator.of(ctx).pop(name);
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return AlertDialog(
+          title: const Text('新しいプレイリスト'),
+          content: TextField(
+            controller: nameController,
+            autofocus: true,
+            maxLength: 50,
+            decoration: InputDecoration(
+              labelText: 'プレイリスト名',
+              border: const OutlineInputBorder(),
+              counterStyle:
+                  TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+            onSubmitted: (v) {
+              if (v.trim().isNotEmpty) Navigator.of(ctx).pop(v.trim());
             },
-            child: const Text('作成'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isNotEmpty) Navigator.of(ctx).pop(name);
+              },
+              child: const Text('作成'),
+            ),
+          ],
+        );
+      },
     );
     nameController.dispose();
     if (result == null || !mounted) return;
@@ -760,20 +742,21 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
     }
   }
 
-  /// プレイリスト選択セクション（ダークモード対応）
+  /// プレイリスト選択セクション
   Widget _buildPlaylistSection() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ラベル
         Row(
           children: [
-            const Icon(Icons.playlist_add, color: Colors.white54, size: 17),
+            Icon(Icons.playlist_add, color: colorScheme.onSurfaceVariant, size: 17),
             const SizedBox(width: 6),
-            const Text(
+            Text(
               'プレイリスト',
               style: TextStyle(
-                color: Colors.white70,
+                color: colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -789,7 +772,7 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Colors.blue[300],
+                color: colorScheme.primary,
               ),
             ),
           )
@@ -799,7 +782,7 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
               'まだプレイリストがありません',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
+              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
             ),
           )
         // チップ一覧
@@ -810,23 +793,8 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
             children: _myPlaylists.map((pl) {
               final selected = _selectedPlaylistIds.contains(pl.id);
               return FilterChip(
-                label: Text(
-                  pl.name,
-                  style: TextStyle(
-                    color: selected ? Colors.white : Colors.white54,
-                    fontSize: 12,
-                  ),
-                ),
+                label: Text(pl.name, style: const TextStyle(fontSize: 12)),
                 selected: selected,
-                backgroundColor: const Color(0xFF1E1E1E),
-                selectedColor: const Color(0xFF1A3A5C),
-                checkmarkColor: const Color(0xFF64B5F6),
-                side: BorderSide(
-                  color: selected
-                      ? const Color(0xFF64B5F6)
-                      : const Color(0xFF3A3A3A),
-                  width: 1,
-                ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 onSelected: (value) {
@@ -847,18 +815,12 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
         // 新規作成ボタン
         OutlinedButton.icon(
           onPressed: _showCreatePlaylistDialog,
-          icon: const Icon(
-            Icons.add_circle_outline,
-            size: 15,
-            color: Color(0xFF64B5F6),
-          ),
-          label: const Text(
+          icon: Icon(Icons.add_circle_outline, size: 15, color: colorScheme.primary),
+          label: Text(
             '新しいプレイリスト',
-            style: TextStyle(color: Color(0xFF64B5F6), fontSize: 12),
+            style: TextStyle(color: colorScheme.primary, fontSize: 12),
           ),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFF1A3A5C)),
-            backgroundColor: const Color(0xFF0D1A26),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -870,6 +832,8 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     // フォームフィールド共通デコレーション
     InputDecoration fieldDeco({
       required String label,
@@ -879,33 +843,11 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
     }) {
       return InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70, fontSize: 14),
-        prefixIcon: Icon(icon, color: Colors.white54, size: 20),
+        prefixIcon: Icon(icon, size: 20),
         helperText: helper,
-        helperStyle: const TextStyle(color: Colors.white38, fontSize: 11),
         suffixIcon: suffix,
-        filled: true,
-        fillColor: const Color(0xFF1A1A1A),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF3A3A3A)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.blue, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 14,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       );
     }
 
@@ -914,9 +856,9 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -928,7 +870,7 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[700],
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -952,15 +894,15 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                         placeholder: (ctx, url) => Container(
                           width: 120,
                           height: 68,
-                          color: const Color(0xFF272727),
+                          color: colorScheme.surfaceContainerHighest,
                         ),
                         errorWidget: (ctx, url, err) => Container(
                           width: 120,
                           height: 68,
-                          color: const Color(0xFF272727),
-                          child: const Icon(
+                          color: colorScheme.surfaceContainerHighest,
+                          child: Icon(
                             Icons.video_library,
-                            color: Colors.white38,
+                            color: colorScheme.onSurfaceVariant,
                             size: 32,
                           ),
                         ),
@@ -972,14 +914,14 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.edit, color: Colors.white, size: 18),
-                            SizedBox(width: 6),
+                            Icon(Icons.edit, color: colorScheme.onSurface, size: 18),
+                            const SizedBox(width: 6),
                             Text(
                               '動画を編集',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: colorScheme.onSurface,
                                 fontSize: 17,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -991,8 +933,8 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                           widget.video.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white60,
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
                             fontSize: 11,
                             height: 1.3,
                           ),
@@ -1005,7 +947,7 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
             ),
 
             const SizedBox(height: 16),
-            const Divider(color: Color(0xFF333333), height: 1),
+            const Divider(height: 1),
             const SizedBox(height: 16),
 
             // ── フォーム部分（スクロール可能） ──
@@ -1021,22 +963,13 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                       // タイトル入力
                       TextFormField(
                         controller: _titleController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
                         decoration: fieldDeco(label: 'タイトル', icon: Icons.title),
                         maxLength: 100,
-                        buildCounter:
-                            (
-                              context, {
-                              required currentLength,
-                              required isFocused,
-                              maxLength,
-                            }) => Text(
+                        buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
+                            Text(
                               '$currentLength / ${maxLength ?? 100}',
-                              style: const TextStyle(
-                                color: Colors.white38,
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
@@ -1055,25 +988,12 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                       // カテゴリ選択
                       DropdownButtonFormField<String>(
                         initialValue: _selectedCategory,
-                        dropdownColor: const Color(0xFF272727),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
                         decoration: fieldDeco(
                           label: 'カテゴリ',
                           icon: Icons.category_outlined,
                         ),
                         items: _categories
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(
-                                  c,
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            )
+                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                             .toList(),
                         onChanged: (value) {
                           if (value != null) {
@@ -1086,10 +1006,6 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                       // 再生時間入力（任意）
                       TextFormField(
                         controller: _durationController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
                         decoration: fieldDeco(
                           label: '再生時間（任意）',
                           icon: Icons.timer_outlined,
@@ -1103,16 +1019,12 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                       // タグ入力
                       TextFormField(
                         controller: _tagInputController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
                         decoration: fieldDeco(
                           label: 'タグを追加',
                           icon: Icons.tag,
                           helper: 'Enterまたは＋で追加',
                           suffix: IconButton(
-                            icon: const Icon(Icons.add, color: Colors.white54),
+                            icon: const Icon(Icons.add),
                             onPressed: () => _addTag(_tagInputController.text),
                           ),
                         ),
@@ -1129,24 +1041,10 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                           children: _tags
                               .map(
                                 (tag) => Chip(
-                                  label: Text(
-                                    tag,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  backgroundColor: const Color(0xFF2A2A2A),
-                                  deleteIconColor: Colors.white54,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
+                                  label: Text(tag, style: const TextStyle(fontSize: 12)),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   onDeleted: () => _removeTag(tag),
-                                  side: const BorderSide(
-                                    color: Color(0xFF444444),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
                                 ),
                               )
                               .toList(),
@@ -1167,19 +1065,17 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleSave,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[600],
-                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                           child: _isLoading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white,
+                                    color: colorScheme.onPrimary,
                                   ),
                                 )
                               : const Text(
@@ -1198,11 +1094,8 @@ class _EditVideoSheetState extends State<EditVideoSheet> {
                         width: double.infinity,
                         height: 44,
                         child: TextButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.of(context).pop(),
+                          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                           style: TextButton.styleFrom(
-                            foregroundColor: Colors.white54,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
