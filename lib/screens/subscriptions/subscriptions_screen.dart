@@ -7,7 +7,9 @@ import '../../services/supabase_service.dart';
 import '../../services/youtube_service.dart';
 import '../../widgets/app_navigation_scaffold.dart';
 import '../../widgets/skeleton_widgets.dart';
+import '../../widgets/app_mobile_top_bar.dart';
 import '../channel/channel_screen.dart';
+import 'subscriptions_channel_list_screen.dart';
 
 /// 登録チャンネル画面
 /// 
@@ -398,6 +400,265 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     }
   }
 
+  /// チャンネル選択サイドバー（タブレット版）
+  Widget _buildChannelSidebar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dividerColor = _textGray.withValues(alpha: 0.2);
+
+    return Container(
+      width: 240,
+      decoration: BoxDecoration(
+        color: _ytBackground,
+        border: Border(
+          right: BorderSide(color: dividerColor),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── すべてのチャンネルボタン ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: InkWell(
+              onTap: () => _selectChannel(null),
+              borderRadius: BorderRadius.circular(8),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _selectedChannelId == null
+                      ? (isDark
+                          ? const Color(0xFF272727)
+                          : Colors.grey.shade200)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.video_library_outlined,
+                      size: 20,
+                      color: _selectedChannelId == null
+                          ? _ytRed
+                          : _textWhite,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        'すべてのチャンネル',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _selectedChannelId == null
+                              ? _ytRed
+                              : _textWhite,
+                          fontWeight: _selectedChannelId == null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          Divider(height: 1, color: dividerColor,
+              indent: 12, endIndent: 12),
+
+          // ── チャンネルリスト ──
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: _subscribedChannels.length,
+              itemBuilder: (context, index) {
+                final channel = _subscribedChannels[index];
+                final isSelected = _selectedChannelId == channel.id;
+
+                return InkWell(
+                  onTap: () => _selectChannel(channel.id),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    color: isSelected
+                        ? (isDark
+                            ? const Color(0xFF272727)
+                            : Colors.grey.shade200)
+                        : Colors.transparent,
+                    child: Row(
+                      children: [
+                        // チャンネルアイコン
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.purple,
+                          backgroundImage: channel.avatarUrl != null
+                              ? NetworkImage(channel.avatarUrl!)
+                              : null,
+                          child: channel.avatarUrl == null
+                              ? Text(
+                                  channel.initials,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 9),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 16),
+                        // チャンネル名
+                        Expanded(
+                          child: Text(
+                            channel.username,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color:
+                                  isSelected ? _ytRed : _textWhite,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// チャンネルアイコンリスト（スマホ版・横スクロール）
+  Widget _buildChannelIconRow() {
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: 92,
+        child: Stack(
+          children: [
+            // ── 横スクロールリスト（右端60pxは「すべて」ボタンの裏になるので余白） ──
+            Container(
+              color: _ytBackground,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(12, 6, 60, 6),
+                itemCount: _subscribedChannels.length,
+                itemBuilder: (context, index) {
+                  final channel = _subscribedChannels[index];
+                  final isSelected = _selectedChannelId == channel.id;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 14),
+                    child: GestureDetector(
+                      onTap: () => _selectChannel(channel.id),
+                      child: SizedBox(
+                        width: 60,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: isSelected
+                                    ? Border.all(color: _ytRed, width: 2.5)
+                                    : null,
+                              ),
+                              child: CircleAvatar(
+                                radius: 28,
+                                backgroundColor: Colors.purple,
+                                backgroundImage: channel.avatarUrl != null
+                                    ? NetworkImage(channel.avatarUrl!)
+                                    : null,
+                                child: channel.avatarUrl == null
+                                    ? Text(
+                                        channel.initials,
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 14),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              channel.username,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isSelected ? _ytRed : _textWhite,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // ── 右端固定の「すべて」ボタン ──
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SubscriptionsChannelListScreen(
+                        channels: _subscribedChannels,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 15, 0),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        _ytBackground.withValues(alpha: 0),
+                        _ytBackground.withValues(alpha: 0.85),
+                        _ytBackground,
+                      ],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'すべて',
+                      style: TextStyle(
+                        color: _selectedChannelId == null
+                            ? _ytRed
+                            : const Color(0xFF065FD4),
+                        fontSize: 13,
+                        fontWeight: _selectedChannelId == null
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// カテゴリフィルターチップを構築
   Widget _buildCategoryPills() {
     return SliverToBoxAdapter(
@@ -617,6 +878,86 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           // サイドバー分を除いた実際の利用可能幅で列数・比率を計算
           final screenWidth = constraints.maxWidth;
           final isWideScreen = screenWidth > 600;
+          // PC ナビゲーションサイドバーの表示判定（AppNavigationScaffold と同じ閾値）
+          final actualScreenWidth = MediaQuery.of(context).size.width;
+          final isPcSidebar = actualScreenWidth >= 1100;
+
+          // 動画スライバーリスト（モバイル・タブレット共通）
+          List<Widget> videoSlivers(double contentWidth) => [
+            if (_subscribedChannels.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.subscriptions_outlined,
+                          size: 80, color: _ytSurface),
+                      const SizedBox(height: 16),
+                      Text('登録チャンネルがありません',
+                          style: TextStyle(color: _textGray)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'チャンネルを登録すると、ここに動画が表示されます',
+                        style: TextStyle(color: _textGray, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_filteredVideos.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.video_library_outlined,
+                          size: 80, color: _ytSurface),
+                      const SizedBox(height: 16),
+                      Text('動画がありません',
+                          style: TextStyle(color: _textGray)),
+                    ],
+                  ),
+                ),
+              )
+            else if (_getGridColumnCount(contentWidth, isWideScreen) == 1)
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) =>
+                      _buildVideoCard(_filteredVideos[index]),
+                  childCount: _filteredVideos.length,
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 8),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount:
+                        _getGridColumnCount(contentWidth, isWideScreen),
+                    mainAxisExtent: _calcCellHeight(contentWidth,
+                        _getGridColumnCount(contentWidth, isWideScreen)),
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildVideoCard(_filteredVideos[index]),
+                    childCount: _filteredVideos.length,
+                  ),
+                ),
+              ),
+            if (_isLoadingMore)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: CircularProgressIndicator(color: _ytRed),
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          ];
 
           return SafeArea(
             bottom: false,
@@ -649,143 +990,111 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                           ),
                         ),
                       )
-                    : RefreshIndicator(
-                        onRefresh: () => _loadSubscribedChannels(isRefresh: true),
-                        color: _ytRed,
-                        backgroundColor: _ytSurface,
-                        child: CustomScrollView(
-                          controller: _scrollController,
-                          slivers: [
-                            // ヘッダー（モバイルのみ表示）
-                            if (!isWideScreen)
-                              SliverAppBar(
-                                floating: true,
-                                backgroundColor:
-                                    _ytBackground.withValues(alpha: 0.95),
-                                elevation: 0,
-                                titleSpacing: 0,
-                                leadingWidth: 0,
-                                leading: const SizedBox.shrink(),
-                                automaticallyImplyLeading: false,
-                                title: Padding(
-                                  padding: const EdgeInsets.only(left: 12),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.subscriptions,
-                                          color: _ytRed, size: 28),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        '登録チャンネル',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
+                    : isPcSidebar
+                        // ── PC：ロゴのみ表示（アイコンなし）＋カテゴリ＋動画 ──
+                        ? RefreshIndicator(
+                            onRefresh: () => _loadSubscribedChannels(
+                                isRefresh: true),
+                            color: _ytRed,
+                            backgroundColor: _ytSurface,
+                            child: CustomScrollView(
+                              controller: _scrollController,
+                              slivers: [
+                                SliverAppBar(
+                                  floating: true,
+                                  backgroundColor:
+                                      _ytBackground.withValues(alpha: 0.95),
+                                  elevation: 0,
+                                  titleSpacing: 0,
+                                  leadingWidth: 0,
+                                  leading: const SizedBox.shrink(),
+                                  automaticallyImplyLeading: false,
+                                  // PC はロゴ非表示・アイコン表示
+                                  title: const SizedBox.shrink(),
+                                  actions: AppMobileTopBar.buildActions(context),
+                                ),
+                                if (_subscribedChannels.isNotEmpty)
+                                  _buildCategoryPills(),
+                                ...videoSlivers(screenWidth),
+                              ],
+                            ),
+                          )
+                        : isWideScreen
+                        // ── タブレット：チャンネルサイドバー + コンテンツ ──
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (_subscribedChannels.isNotEmpty)
+                                _buildChannelSidebar(),
+                              Expanded(
+                                child: RefreshIndicator(
+                                  onRefresh: () => _loadSubscribedChannels(
+                                      isRefresh: true),
+                                  color: _ytRed,
+                                  backgroundColor: _ytSurface,
+                                  child: CustomScrollView(
+                                    controller: _scrollController,
+                                    slivers: [
+                                      // 共通上部バー
+                                      SliverAppBar(
+                                        floating: true,
+                                        backgroundColor: _ytBackground
+                                            .withValues(alpha: 0.95),
+                                        elevation: 0,
+                                        titleSpacing: 0,
+                                        leadingWidth: 0,
+                                        leading: const SizedBox.shrink(),
+                                        automaticallyImplyLeading: false,
+                                        title: AppMobileTopBar.buildTitle(
+                                            context),
+                                        actions: AppMobileTopBar.buildActions(
+                                            context),
                                       ),
+                                      if (_subscribedChannels.isNotEmpty)
+                                        _buildCategoryPills(),
+                                      ...videoSlivers(
+                                          screenWidth -
+                                              (_subscribedChannels.isNotEmpty
+                                                  ? 240
+                                                  : 0)),
                                     ],
                                   ),
                                 ),
-                                actions: [
-                                  if (_subscribedChannels.isNotEmpty)
-                                    IconButton(
-                                      icon: Icon(Icons.filter_list,
-                                          color: _textWhite),
-                                      onPressed: _showChannelSelectionDialog,
-                                    ),
-                                ],
                               ),
-
-                            // カテゴリフィルターチップ
-                            if (_subscribedChannels.isNotEmpty)
-                              _buildCategoryPills(),
-
-                            // コンテンツ
-                            if (_subscribedChannels.isEmpty)
-                              SliverFillRemaining(
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.subscriptions_outlined,
-                                          size: 80, color: _ytSurface),
-                                      const SizedBox(height: 16),
-                                      Text('登録チャンネルがありません',
-                                          style:
-                                              TextStyle(color: _textGray)),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'チャンネルを登録すると、ここに動画が表示されます',
-                                        style: TextStyle(
-                                            color: _textGray, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
+                            ],
+                          )
+                        // ── モバイル：上部アイコン横スクロール ──
+                        : RefreshIndicator(
+                            onRefresh: () => _loadSubscribedChannels(
+                                isRefresh: true),
+                            color: _ytRed,
+                            backgroundColor: _ytSurface,
+                            child: CustomScrollView(
+                              controller: _scrollController,
+                              slivers: [
+                                // 共通上部バー（モバイル）
+                                SliverAppBar(
+                                  floating: true,
+                                  backgroundColor:
+                                      _ytBackground.withValues(alpha: 0.95),
+                                  elevation: 0,
+                                  titleSpacing: 0,
+                                  leadingWidth: 0,
+                                  leading: const SizedBox.shrink(),
+                                  automaticallyImplyLeading: false,
+                                  title: AppMobileTopBar.buildTitle(context),
+                                  actions: AppMobileTopBar.buildActions(context),
                                 ),
-                              )
-                            else if (_filteredVideos.isEmpty)
-                              SliverFillRemaining(
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.video_library_outlined,
-                                          size: 80, color: _ytSurface),
-                                      const SizedBox(height: 16),
-                                      Text('動画がありません',
-                                          style:
-                                              TextStyle(color: _textGray)),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            else if (_getGridColumnCount(
-                                    screenWidth, isWideScreen) ==
-                                1)
-                              SliverList(
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, index) => _buildVideoCard(
-                                      _filteredVideos[index]),
-                                  childCount: _filteredVideos.length,
-                                ),
-                              )
-                            else
-                              SliverPadding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 8),
-                                sliver: SliverGrid(
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: _getGridColumnCount(
-                                        screenWidth, isWideScreen),
-                                    mainAxisExtent: _calcCellHeight(
-                                        screenWidth,
-                                        _getGridColumnCount(
-                                            screenWidth, isWideScreen)),
-                                    crossAxisSpacing: 8,
-                                    mainAxisSpacing: 8,
-                                  ),
-                                  delegate: SliverChildBuilderDelegate(
-                                    (context, index) => _buildVideoCard(
-                                        _filteredVideos[index]),
-                                    childCount: _filteredVideos.length,
-                                  ),
-                                ),
-                              ),
-
-                            if (_isLoadingMore)
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Center(
-                                    child: CircularProgressIndicator(color: _ytRed),
-                                  ),
-                                ),
-                              ),
-                            const SliverToBoxAdapter(
-                                child: SizedBox(height: 80)),
-                          ],
-                        ),
-                      ),
+                                // チャンネルアイコンリスト（モバイルのみ）
+                                if (_subscribedChannels.isNotEmpty)
+                                  _buildChannelIconRow(),
+                                // カテゴリフィルターチップ
+                                if (_subscribedChannels.isNotEmpty)
+                                  _buildCategoryPills(),
+                                ...videoSlivers(screenWidth),
+                              ],
+                            ),
+                          ),
           );
         },
       ),
@@ -794,6 +1103,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
 
   /// スケルトンビュー（初回ロード中に表示）
   Widget _buildSkeletonView() {
+    final isPC = MediaQuery.of(context).size.width >= 1100;
     return Container(
       color: _ytBackground,
       child: CustomScrollView(
@@ -807,23 +1117,11 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             leadingWidth: 0,
             leading: const SizedBox.shrink(),
             automaticallyImplyLeading: false,
-            title: Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Row(
-                children: [
-                  Icon(Icons.subscriptions, color: _ytRed, size: 28),
-                  const SizedBox(width: 8),
-                  Text(
-                    '登録チャンネル',
-                    style: TextStyle(
-                      color: _textWhite,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // PC はロゴ非表示・アイコン表示
+            title: isPC
+                ? const SizedBox.shrink()
+                : AppMobileTopBar.buildTitle(context),
+            actions: AppMobileTopBar.buildActions(context),
           ),
           const SkeletonSliverList(
             itemBuilder: SkeletonVideoCardSmall.new,
@@ -834,74 +1132,4 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     );
   }
 
-  /// チャンネル選択ダイアログを表示 (スマホサイズ用)
-  void _showChannelSelectionDialog() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _ytSurface,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  'チャンネルを選択',
-                  style: TextStyle(
-                    color: _textWhite,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const Divider(color: Color(0xFF3F3F3F)),
-              
-              // 「すべて」
-              ListTile(
-                leading: Icon(Icons.subscriptions_outlined, color: _textWhite),
-                title: Text('すべて', style: TextStyle(color: _textWhite)),
-                trailing: _selectedChannelId == null
-                    ? Icon(Icons.check, color: _ytRed)
-                    : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  _selectChannel(null);
-                },
-              ),
-              
-              const Divider(color: Color(0xFF3F3F3F)),
-              
-              // 登録チャンネル一覧
-              ..._subscribedChannels.map((channel) {
-                final isSelected = _selectedChannelId == channel.id;
-                return ListTile(
-                  leading: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Colors.purple,
-                    backgroundImage: channel.avatarUrl != null
-                        ? NetworkImage(channel.avatarUrl!)
-                        : null,
-                    child: channel.avatarUrl == null
-                        ? Text(
-                            channel.initials,
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
-                          )
-                        : null,
-                  ),
-                  title: Text(channel.username, style: TextStyle(color: _textWhite)),
-                  trailing: isSelected ? Icon(Icons.check, color: _ytRed) : null,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _selectChannel(channel.id);
-                  },
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }

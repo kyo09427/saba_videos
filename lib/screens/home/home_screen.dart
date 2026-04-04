@@ -1094,13 +1094,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.only(left: 12),
         child: Row(
           children: [
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.play_circle_filled, color: _ytRed, size: 30),
-            ),
+            Image.asset('icon.png', height: 30),
             const SizedBox(width: 4),
             Text(
               'SabaTube',

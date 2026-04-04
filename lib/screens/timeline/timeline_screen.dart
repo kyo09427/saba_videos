@@ -4,6 +4,7 @@ import '../../models/video.dart';
 import '../../services/cache_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/youtube_service.dart';
+import '../../widgets/app_mobile_top_bar.dart';
 import '../../widgets/app_navigation_scaffold.dart';
 import '../../widgets/skeleton_widgets.dart';
 import '../channel/channel_screen.dart';
@@ -618,7 +619,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   /// スケルトンビュー（初回ロード中に表示）
-  Widget _buildSkeletonView() {
+  Widget _buildSkeletonView(double screenWidth) {
     return Container(
       color: _ytBackground,
       child: CustomScrollView(
@@ -632,23 +633,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
             leadingWidth: 0,
             leading: const SizedBox.shrink(),
             automaticallyImplyLeading: false,
-            title: Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Row(
-                children: [
-                  Icon(Icons.timeline, color: _ytRed, size: 28),
-                  const SizedBox(width: 8),
-                  Text(
-                    'タイムライン',
-                    style: TextStyle(
-                      color: _textWhite,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            title: screenWidth < 1100
+                ? AppMobileTopBar.buildTitle(context)
+                : const SizedBox.shrink(),
+            actions: AppMobileTopBar.buildActions(context),
           ),
           // 月ヘッダースケルトン
           SliverToBoxAdapter(
@@ -687,7 +675,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
             // メインコンテンツ
             Expanded(
               child: _isLoading
-                  ? _buildSkeletonView()
+                  ? _buildSkeletonView(screenWidth)
                   : _errorMessage != null
                       ? Center(
                           child: Padding(
@@ -723,40 +711,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             slivers: [
                               // ─ アプリバー ─
                               SliverAppBar(
-                                floating: true,
-                                backgroundColor:
-                                    _ytBackground.withValues(alpha: 0.95),
-                                elevation: 0,
-                                titleSpacing: 0,
-                                leadingWidth: 0,
-                                leading: const SizedBox.shrink(),
-                                automaticallyImplyLeading: false,
-                                title: Padding(
-                                  padding: const EdgeInsets.only(left: 12),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.timeline,
-                                          color: _ytRed, size: 28),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'タイムライン',
-                                        style: TextStyle(
-                                          color: _textWhite,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                actions: [
-                                  IconButton(
-                                    icon: Icon(Icons.refresh,
-                                        color: _textWhite),
-                                    onPressed: () =>
-                                        _loadVideos(isRefresh: true),
-                                  ),
-                                ],
+                                  floating: true,
+                                  backgroundColor:
+                                      _ytBackground.withValues(alpha: 0.95),
+                                  elevation: 0,
+                                  titleSpacing: 0,
+                                  leadingWidth: 0,
+                                  leading: const SizedBox.shrink(),
+                                  automaticallyImplyLeading: false,
+                                  // PC（サイドバーあり）はロゴ非表示
+                                  title: screenWidth < 1100
+                                      ? AppMobileTopBar.buildTitle(context)
+                                      : const SizedBox.shrink(),
+                                  actions: AppMobileTopBar.buildActions(context),
                               ),
 
                             // ─ 動画がない場合 ─
