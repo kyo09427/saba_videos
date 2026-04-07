@@ -290,14 +290,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     // --- 初期化中 ---
     if (!_isInitialized) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('初期化中...'),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset('icon.png', width: 100, height: 100),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('初期化中...'),
             ],
           ),
         ),
@@ -344,14 +349,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     // --- ギルド検証中 ---
     if (_isVerifyingGuild == true) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Discordサーバーを確認中...'),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset('icon.png', width: 100, height: 100),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Discordサーバーを確認中...'),
             ],
           ),
         ),

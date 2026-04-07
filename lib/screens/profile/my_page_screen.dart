@@ -48,6 +48,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
   UpdateInfo? _latestUpdateInfo;
 
   bool _isLoading = true;
+  bool _isViewsLoading = true;
 
   @override
   void initState() {
@@ -155,23 +156,32 @@ class _MyPageScreenState extends State<MyPageScreen> {
           CacheService.instance.get<int>(CacheKeys.myPageVideoCount);
       final cachedViews =
           CacheService.instance.get<int>(CacheKeys.myPageTotalViews);
-      if (cachedProfile != null && cachedCount != null && cachedViews != null) {
+      if (cachedProfile != null && cachedCount != null) {
         if (mounted) {
           setState(() {
             _userEmail = user.email;
             _createdAt = DateTime.parse(user.createdAt);
             _userProfile = cachedProfile;
             _totalVideos = cachedCount;
-            _totalViews = cachedViews;
             _isLoading = false;
+            if (cachedViews != null) {
+              _totalViews = cachedViews;
+              _isViewsLoading = false;
+            } else {
+              _isViewsLoading = true;
+            }
           });
         }
+        if (cachedViews != null) return;
+        // 再生数キャッシュなし → 再生数だけ非同期で取得
+        await _fetchAndCacheViews(user.id);
         return;
       }
     }
 
     setState(() {
       _isLoading = true;
+      _isViewsLoading = true;
     });
 
     try {
@@ -191,23 +201,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
       final videoCount = videoUrls.length;
 
-      // Edge Function 経由で合計再生回数を取得（APIキーはサーバーサイドのみ）
-      int totalViews = 0;
-      if (videoUrls.isNotEmpty) {
-        try {
-          final res = await _supabase.functions.invoke(
-            'youtube-views',
-            body: {'videoUrls': videoUrls},
-          );
-          if (res.data != null && res.data['totalViews'] is num) {
-            totalViews = (res.data['totalViews'] as num).toInt();
-          }
-        } catch (e) {
-          debugPrint('⚠️ Failed to fetch view counts: $e');
-        }
-      }
-
-      // キャッシュに保存
+      // プロフィール・投稿数をキャッシュに保存
       if (profile != null) {
         CacheService.instance.set<UserProfile>(
           CacheKeys.myPageProfile,
@@ -218,29 +212,80 @@ class _MyPageScreenState extends State<MyPageScreen> {
         CacheKeys.myPageVideoCount,
         videoCount,
       );
-      // 再生回数は翌日の日本時間 0:00 まで有効
-      CacheService.instance.set<int>(
-        CacheKeys.myPageTotalViews,
-        totalViews,
-        ttl: _ttlUntilJstMidnight(),
-      );
 
+      // フェーズ1完了: ページを即座に表示（総再生数はまだ読み込み中）
       if (mounted) {
         setState(() {
           _userEmail = user.email;
           _createdAt = DateTime.parse(user.createdAt);
           _userProfile = profile;
           _totalVideos = videoCount;
-          _totalViews = totalViews;
           _isLoading = false;
+          // _isViewsLoading は true のまま
         });
       }
+
+      // フェーズ2: 総再生数を非同期で取得
+      await _fetchAndCacheViews(user.id, videoUrls: videoUrls);
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
+          _isViewsLoading = false;
         });
       }
+    }
+  }
+
+  /// Edge Function 経由で総再生数を取得してキャッシュに保存する
+  Future<void> _fetchAndCacheViews(
+    String userId, {
+    List<String>? videoUrls,
+  }) async {
+    // videoUrls が渡されていない場合は再取得
+    List<String> urls;
+    if (videoUrls != null) {
+      urls = videoUrls;
+    } else {
+      try {
+        final res =
+            await _supabase.from('videos').select('url').eq('user_id', userId);
+        urls = (res as List)
+            .map((v) => v['url'] as String? ?? '')
+            .where((url) => url.isNotEmpty)
+            .toList();
+      } catch (e) {
+        urls = [];
+      }
+    }
+
+    int totalViews = 0;
+    if (urls.isNotEmpty) {
+      try {
+        final res = await _supabase.functions.invoke(
+          'youtube-views',
+          body: {'videoUrls': urls},
+        );
+        if (res.data != null && res.data['totalViews'] is num) {
+          totalViews = (res.data['totalViews'] as num).toInt();
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to fetch view counts: $e');
+      }
+    }
+
+    // 再生回数は翌日の日本時間 0:00 まで有効
+    CacheService.instance.set<int>(
+      CacheKeys.myPageTotalViews,
+      totalViews,
+      ttl: _ttlUntilJstMidnight(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _totalViews = totalViews;
+        _isViewsLoading = false;
+      });
     }
   }
 
@@ -391,6 +436,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
     required String label,
     required String value,
     required Color color,
+    bool isLoading = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -409,14 +455,23 @@ class _MyPageScreenState extends State<MyPageScreen> {
         children: [
           Icon(icon, color: color, size: 32),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
+          isLoading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
+                )
+              : Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
           const SizedBox(height: 4),
           Text(
             label,
@@ -820,7 +875,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
               children: [
                 _buildWideStatItem(context, '動画投稿数', '$_totalVideos'),
                 _buildWideStatDivider(context),
-                _buildWideStatItem(context, '総再生数', '$_totalViews'),
+                _buildWideStatItem(context, '総再生数', '$_totalViews',
+                    isLoading: _isViewsLoading),
                 _buildWideStatDivider(context),
                 _buildWideStatItem(context, 'いいね', '$_totalLikes'),
               ],
@@ -831,7 +887,12 @@ class _MyPageScreenState extends State<MyPageScreen> {
     );
   }
 
-  Widget _buildWideStatItem(BuildContext context, String label, String value) {
+  Widget _buildWideStatItem(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isLoading = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -845,13 +906,19 @@ class _MyPageScreenState extends State<MyPageScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
         ],
       ),
     );
@@ -1319,6 +1386,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                         label: '総再生数',
                         value: '$_totalViews',
                         color: Colors.orange,
+                        isLoading: _isViewsLoading,
                       ),
                     ),
                     const SizedBox(width: 12),
