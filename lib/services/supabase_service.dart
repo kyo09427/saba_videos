@@ -81,19 +81,10 @@ class SupabaseService {
       }
 
       // Supabaseの初期化
-      // authFlowType: implicit を使用する理由:
-      // PKCEフロー（デフォルト）はlocalStorageにcode_verifierを保存するが、
-      // モバイルブラウザではOAuth中に別アプリへ切り替えた際にlocalStorageが
-      // クリアされ、"Unable to exchange external code"エラーが発生する。
-      // implicitフローはトークンをURLハッシュで直接返すため、
-      // localStorageの永続化が不要でモバイルブラウザでも安定して動作する。
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
         debug: kDebugMode,
-        authOptions: const FlutterAuthClientOptions(
-          authFlowType: AuthFlowType.implicit,
-        ),
       );
 
       _client = Supabase.instance.client;

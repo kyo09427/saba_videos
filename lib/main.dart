@@ -421,6 +421,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
         // エラーハンドリング
         if (snapshot.hasError) {
+          final errorStr = snapshot.error.toString();
+          final isDiscordExchangeError = errorStr.contains('Unable to exchange external code') ||
+              (errorStr.contains('server_error') && errorStr.contains('unexpected_failure'));
+          final supabaseCallbackUrl = isDiscordExchangeError
+              ? '${SupabaseService.instance.client.supabaseUrl}/auth/v1/callback'
+              : null;
+
           return Scaffold(
             body: Center(
               child: Padding(
@@ -435,13 +442,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      '認証エラーが発生しました。\n${snapshot.error}',
+                      isDiscordExchangeError
+                          ? 'Discord認証の設定を確認してください。\n\n以下のURLがDiscord Developer PortalのOAuth2リダイレクトURIに登録されているか確認してください：\n\n$supabaseCallbackUrl\n\nまたはSupabaseのDiscordプロバイダー設定（Client ID/Secret）を確認してください。'
+                          : '認証エラーが発生しました。\n$errorStr',
                       textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 13),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () {
-                        setState(() {});
+                        setState(() {
+                          _guildVerified = false;
+                          _isVerifyingGuild = null;
+                          _guildErrorMessage = null;
+                        });
                       },
                       child: const Text('再読み込み'),
                     ),
