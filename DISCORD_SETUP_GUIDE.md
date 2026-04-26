@@ -84,6 +84,32 @@ https://vqvyyyqhtbgxtmknuigf.supabase.co/auth/v1/callback
 
 ## トラブルシューティング
 
+### 「Discord認証の設定を確認してください」/ `Unable to exchange external code` エラーが発生する
+
+このエラーはSupabaseがDiscordのトークン交換に失敗した場合に発生します。以下を順番に確認してください：
+
+**① Discord Developer Portalのリダイレクト URI を確認**
+
+Discord Developer Portal (https://discord.com/developers/applications) を開き、
+該当アプリの **OAuth2** > **Redirects** に以下が登録されていることを確認：
+
+```
+https://<your-supabase-project-ref>.supabase.co/auth/v1/callback
+```
+
+> ⚠️ 正確なSupabaseプロジェクトURLはSupabaseダッシュボードの **Settings** > **API** で確認できます。
+> アプリのエラー画面にも正確なURLが表示されます。
+
+**② Supabase の Discord プロバイダー設定を確認**
+
+Supabaseダッシュボード > **Authentication** > **Providers** > **Discord** を開き：
+- ✅ **Enabled**: ON になっているか
+- **Client ID**: Discord Developer Portalの「OAuth2 > Client ID」と一致しているか
+- **Client Secret**: Discord Developer Portalの「OAuth2 > Client Secret」と一致しているか
+  - Secretは再生成すると古い値が無効になります。再生成した場合はSupabaseも更新が必要です。
+
+---
+
 ### 「指定のDiscordサーバーに参加していないため、ログインできません」と表示される
 - Discord サーバー（Guild ID: `1195727435333894144`）に参加していることを確認
 
