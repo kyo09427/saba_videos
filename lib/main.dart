@@ -425,7 +425,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           final isDiscordExchangeError = errorStr.contains('Unable to exchange external code') ||
               (errorStr.contains('server_error') && errorStr.contains('unexpected_failure'));
           final supabaseCallbackUrl = isDiscordExchangeError
-              ? '${SupabaseService.instance.client.supabaseUrl}/auth/v1/callback'
+              ? '${SupabaseService.supabaseUrl}/auth/v1/callback'
               : null;
 
           return Scaffold(

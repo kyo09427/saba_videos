@@ -10,6 +10,9 @@ class SupabaseService {
   static SupabaseService? _instance;
   static SupabaseClient? _client;
   static String? _sharedPassword;
+  static String? _supabaseUrl;
+
+  static String? get supabaseUrl => _supabaseUrl;
 
   SupabaseService._();
 
@@ -88,6 +91,7 @@ class SupabaseService {
       );
 
       _client = Supabase.instance.client;
+      _supabaseUrl = supabaseUrl;
 
       if (kDebugMode) {
         debugPrint('✅ Supabase initialized successfully');
